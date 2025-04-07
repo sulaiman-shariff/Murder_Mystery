@@ -1,0 +1,261 @@
+/* General Body Styling */
+body {
+    background: black;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    font-family: 'Courier New', Courier, monospace;
+    color: #ffffff;
+    text-shadow: 0px 0px 8px rgba(0, 255, 255, 0.6);
+}
+
+/* Matrix Background Effect */
+.matrix-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: url("https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbzFxemlweWM2M21jc25leTltdng1eGdvZjA1bmY0OHd3NmwxeXAxYyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/UQhCzHSnpDlu2xdAtV/giphy.gif") no-repeat center center fixed;
+    background-size: cover;
+    z-index: -1;
+    filter: brightness(0.6) contrast(1.2);
+}
+
+/* Game Container */
+.game-container {
+    max-width: 1600px;
+    width: 75%;
+    min-height: 100vh;
+    padding: 40px;
+    background-color: rgba(26, 26, 26, 0.568);
+    border-radius: 15px;
+    margin: auto;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0px 0px 30px rgba(72, 202, 241, 0.5);
+    backdrop-filter: blur(10px);
+}
+
+/* Mystery Title - Glitch Effect */
+.mystery-title {
+    font-size: 32px;
+    font-weight: bold;
+    color: #ffcc00;
+    text-transform: uppercase;
+    animation: glitch 0.6s infinite alternate;
+}
+
+@keyframes glitch {
+    0% { text-shadow: 3px 3px red, -3px -3px blue; }
+    25% { text-shadow: -3px -3px red, 3px 3px blue; }
+    50% { text-shadow: 3px -3px red, -3px 3px blue; }
+    75% { text-shadow: -3px 3px red, 3px -3px blue; }
+    100% { text-shadow: 3px 3px red, -3px -3px blue; }
+}
+
+/* Story Container */
+.story-container {
+    background: #222;
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    width: 90%;
+    max-width: 1000px;
+    margin: auto;
+    box-shadow: 0px 0px 15px rgba(0, 255, 255, 0.4);
+    position: relative;
+    text-align: left;
+}
+
+/* Story Content */
+.story-content {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 10px;
+    line-height: 1.8;
+}
+
+.story-paragraph {
+    margin-bottom: 1em;
+    text-align: left;
+    padding: 8px 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.story-paragraph:last-child {
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+/* Read More Button */
+.read-more-btn {
+    background-color: gold;
+    border: none;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease, transform 0.2s;
+    margin-top: 15px;
+    display: inline-block;
+}
+
+.read-more-btn:hover {
+    background-color: darkgoldenrod;
+    transform: scale(1.1);
+}
+
+/* Timer Container */
+.timer-container {
+    background: black;
+    border: 3px solid gold;
+    border-radius: 12px;
+    padding: 15px;
+    width: 250px;
+    text-align: center;
+    margin: 20px auto;
+    font-size: 22px;
+    font-weight: bold;
+    color: white;
+    animation: pulsate 1.5s infinite alternate;
+    box-shadow: 0px 0px 20px rgba(255, 215, 0, 0.8);
+}
+
+@keyframes pulsate {
+    0% { transform: scale(1); box-shadow: 0px 0px 10px rgba(255, 215, 0, 0.5); }
+    50% { transform: scale(1.05); box-shadow: 0px 0px 20px rgba(255, 215, 0, 0.8); }
+    100% { transform: scale(1); box-shadow: 0px 0px 10px rgba(255, 215, 0, 0.5); }
+}
+
+/* Audio Player Container */
+.audio-container {
+    width: 90%;
+    max-width: 600px;
+    margin: 20px auto;
+    background: rgba(167, 246, 252, 0.7);
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+}
+
+.audio-container audio {
+    width: 100%;
+    outline: none;
+}
+
+.audio-container audio::-webkit-media-controls-panel {
+    background-color: #222;
+}
+
+.audio-container audio::-webkit-media-controls-play-button,
+.audio-container audio::-webkit-media-controls-mute-button {
+    filter: invert(1);
+}
+
+/* Input Fields */
+input {
+    padding: 12px;
+    font-size: 18px;
+    width: 100%;
+    border: 2px solid #00c3ff;
+    border-radius: 8px;
+    background: #222;
+    color: white;
+    outline: none;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+input:focus {
+    border-color: #ffcc00;
+    box-shadow: 0px 0px 15px rgba(255, 204, 0, 0.6);
+}
+
+/* Buttons */
+button {
+    padding: 14px 24px;
+    font-size: 18px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    transition: transform 0.2s, box-shadow 0.3s;
+    background: linear-gradient(90deg, #00c3ff, #008cb3);
+    color: white;
+    animation: buttonGlow 1.5s infinite alternate;
+}
+
+button:hover {
+    transform: scale(1.1);
+    box-shadow: 0px 0px 15px rgba(0, 255, 255, 0.8);
+}
+
+@keyframes buttonGlow {
+    0% { box-shadow: 0px 0px 5px rgba(0, 255, 255, 0.3); }
+    50% { box-shadow: 0px 0px 15px rgba(0, 255, 255, 0.6); }
+    100% { box-shadow: 0px 0px 5px rgba(0, 255, 255, 0.3); }
+}
+
+/* Mystery Card Scanline Effect */
+.mystery-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(transparent 49%, rgba(255, 255, 255, 0.15) 50%, transparent 51%);
+    background-size: 100% 5px;
+    opacity: 0.2;
+    pointer-events: none;
+}
+
+/* ======================= */
+/* FINAL GAME ENHANCEMENTS */
+/* ======================= */
+
+/* Victory Button */
+.win-button {
+    background: linear-gradient(90deg, #ffd700, #c9b037);
+    color: #222;
+    font-weight: bolder;
+    animation: victoryPulse 1.5s infinite;
+    text-shadow: 0 0 5px rgba(0,0,0,0.3);
+}
+
+.win-button:hover {
+    animation: victoryPulse 0.75s infinite;
+    box-shadow: 0 0 25px gold;
+}
+
+@keyframes victoryPulse {
+    0% { transform: scale(1); box-shadow: 0 0 10px gold; }
+    50% { transform: scale(1.05); box-shadow: 0 0 25px gold; }
+    100% { transform: scale(1); box-shadow: 0 0 10px gold; }
+}
+
+/* Feedback Messages */
+.win-feedback {
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+    font-size: 1.2em;
+    animation: textGlow 2s infinite alternate;
+}
+
+.error-feedback {
+    color: #ff4444;
+    text-shadow: 0 0 8px rgba(255, 0, 0, 0.5);
+}
+
+@keyframes textGlow {
+    from { text-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
+    to { text-shadow: 0 0 15px rgba(255, 215, 0, 0.9); }
+}
+
+/* Empty Paragraph Handling */
+.story-paragraph:empty::after {
+    content: "";
+    display: block;
+    height: 1em;
+}

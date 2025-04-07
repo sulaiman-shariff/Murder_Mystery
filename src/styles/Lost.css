@@ -1,0 +1,59 @@
+/* Lost Screen Container */
+.lost-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: url("https://media.giphy.com/media/LShzvtC3Ri1oO7TMHT/giphy.gif?cid=ecf05e47o5z36l8y27x9yefl9m5oisc1q1lsincreksly3xj&ep=v1_gifs_related&rid=giphy.gif&ct=g") center/cover no-repeat;
+    color: white;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: opacity 3s ease-in-out;
+}
+
+/* Fade-Out Effect */
+.fade-out {
+    opacity: 0;
+}
+
+/* Dripping Blood Effect */
+.blood-drip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 80px;
+    background-size: cover;
+}
+
+/* Glitchy Lost Title */
+.lost-title {
+    font-size: 48px;
+    font-weight: bold;
+    color: red;
+    text-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+    animation: glitchEffect 0.8s infinite alternate;
+}
+
+@keyframes glitchEffect {
+    0% { text-shadow: 2px 2px red, -2px -2px blue; }
+    50% { text-shadow: -2px -2px red, 2px 2px blue; }
+    100% { text-shadow: 2px -2px red, -2px 2px blue; }
+}
+
+/* Flickering Message */
+.lost-message {
+    font-size: 20px;
+    max-width: 600px;
+    margin-top: 20px;
+    opacity: 0.8;
+    animation: flicker 2s infinite;
+}
+
+@keyframes flicker {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
