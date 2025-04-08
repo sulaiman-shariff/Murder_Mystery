@@ -1,7 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 .env
-backend/
- mm.zip
+mm.zip
+backend/venv/
+backend/__pycache_
 mm
 newvenv
 package-lock.json
