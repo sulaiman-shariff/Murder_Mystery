@@ -1,0 +1,56 @@
+/* Timer Container */
+.flip-clock-container {
+  display: flex;
+  justify-content: center;
+  margin: 20px auto;
+  padding: 15px;
+  background: black;
+  border-radius: 10px;
+  width: 250px;
+  border: 3px solid gold;
+  box-shadow: 0px 0px 20px rgba(255, 215, 0, 0.8);
+}
+
+/* Flip Clock Layout */
+.flip-clock {
+  display: flex;
+  align-items: center;
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: white;
+}
+
+/* Timer Digits */
+.flip-digit {
+  width: 45px;
+  height: 60px;
+  background: black;
+  border-radius: 5px;
+  margin: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  border: 2px solid gold;
+  box-shadow: 0px 0px 10px rgba(255, 215, 0, 0.7);
+  text-shadow: 0px 0px 10px rgba(255, 215, 0, 0.7);
+}
+
+/* Flip Animation */
+@keyframes flip {
+  0% { transform: rotateX(0deg); }
+  50% { transform: rotateX(-90deg); opacity: 0.5; }
+  100% { transform: rotateX(-180deg); opacity: 1; }
+}
+
+.flip-digit {
+  animation: flip 1s infinite alternate ease-in-out;
+}
+
+/* Separator (Colon) */
+.flip-separator {
+  font-size: 2.5rem;
+  margin: 0 8px;
+  color: gold;
+}
