@@ -1,5 +1,27 @@
 # Murder Mystery Game - Deployment Guide
 
+## Vercel (Next.js)
+
+The app is now a single Next.js project. The existing game screens are served by the App Router, and the former Express AI proxy is implemented as Vercel Route Handlers under `src/app/api`.
+
+1. Import this repository into Vercel and keep the framework preset as **Next.js**.
+2. Add these server-side environment variables in the Vercel project settings:
+   - `GOOGLE_CLOUD_PROJECT` (for example `striped-sight-443116-g6`)
+   - `GOOGLE_CLOUD_LOCATION` (for example `us-central1`)
+   - `GOOGLE_SERVICE_ACCOUNT_JSON` containing the service-account JSON as one-line JSON
+3. Leave `NEXT_PUBLIC_API_URL` unset to use the same deployment's `/api` routes. Set it only when intentionally using an external API.
+4. Deploy. Vercel runs `npm run build` and serves the frontend and API routes from the same domain.
+
+For a local production check:
+
+```bash
+npm install
+npm run build
+npm start
+```
+
+Do not commit service-account JSON files. The previously tracked key has been removed; rotate/revoke that Google Cloud key before deploying, then use a new key in Vercel's encrypted environment variable instead.
+
 ## Overview
 This guide will help you deploy the Murder Mystery Game with AWS Lambda backend and modern frontend.
 
@@ -253,4 +275,4 @@ For issues and questions:
 5. Check AWS service status
 
 ## License
-This project is developed by Code Club and made by Akhil. 
+This project is developed by Code Club and made by Sulaiman.

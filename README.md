@@ -1,10 +1,10 @@
 # 🕵️ AI-Powered Murder Mystery Game
 
-A **completely self-contained** interactive murder mystery game with **AI-powered validation and hints** that runs entirely in the browser. No backend server required!
+A full-stack **Next.js** interactive murder mystery game with **AI-powered validation and hints**. The game UI and server-side Vertex AI proxy are deployed together as one Vercel project.
 
 ## 🚀 Features
 
-### 🤖 AI-Powered Features (Frontend-Only)
+### 🤖 AI-Powered Features
 - **AI Murderer Validation**: Flexible name matching (nicknames, misspellings, titles)
 - **AI Motive Validation**: Semantic understanding of motives, not just exact text matches
 - **AI Hint Generation**: Dynamic, contextual hints based on player questions
@@ -23,15 +23,13 @@ A **completely self-contained** interactive murder mystery game with **AI-powere
 
 ## 🏗️ Architecture
 
-### Frontend-Only Design
+### Unified Next.js Design
 ```
-React App (Browser)
-├── Game Logic (Local Storage)
-├── AI Validation (Local + Optional External)
-├── Scoring System
-├── Leaderboard
-├── Team Management
-└── Data Persistence (LocalStorage)
+Next.js App (Vercel)
+├── src/legacy-pages/       # Existing game screens and React Router flow
+├── src/app/                # App Router shell and /api Route Handlers
+├── lib/vertex.js           # Server-only Vertex AI integration
+└── src/services/           # Game logic and local persistence
 ```
 
 ### Key Components
@@ -43,7 +41,7 @@ React App (Browser)
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js (v14 or higher)
+- Node.js (v20.9 or higher)
 - Modern web browser
 
 ### Installation
@@ -69,24 +67,23 @@ React App (Browser)
    http://localhost:3000
    ```
 
-### Optional AI Enhancement
+### AI Configuration
 
-For enhanced AI features, you can optionally connect to external AI services:
+Configure the server-side Vertex AI integration with:
 
 1. **Set up environment variables**
    ```bash
    cp env.example .env
    ```
 
-2. **Edit `.env` file**
+2. **Edit `.env` file** with server-only Vertex AI credentials:
    ```
-   REACT_APP_API_URL=http://localhost:3001
+   GOOGLE_CLOUD_PROJECT=striped-sight-443116-g6
+   GOOGLE_CLOUD_LOCATION=us-central1
+   GOOGLE_SERVICE_ACCOUNT_JSON={...}
    ```
 
-3. **Start the AI proxy server** (optional)
-   ```bash
-   node server.js
-   ```
+The browser uses the same deployment's `/api` endpoints by default. Set `NEXT_PUBLIC_API_URL` only if you intentionally use an external API.
 
 ## 🧪 Testing AI Features
 
@@ -152,8 +149,7 @@ gameService.clearAllData();
 
 ## 🚀 Deployment
 
-### Static Hosting
-The app can be deployed to any static hosting service:
+### Vercel
 
 1. **Build the app**
    ```bash
@@ -161,15 +157,14 @@ The app can be deployed to any static hosting service:
    ```
 
 2. **Deploy to your preferred platform**
-   - Vercel: `vercel --prod`
-   - Netlify: Drag `build` folder to Netlify
-   - GitHub Pages: `npm run deploy`
-   - AWS S3: Upload `build` folder
+   - Import the repository into Vercel (framework preset: Next.js)
+   - Add `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, and `GOOGLE_SERVICE_ACCOUNT_JSON` in Project Settings → Environment Variables
+   - Deploy; Vercel runs `npm run build`
 
 ### Environment Variables
 For production with AI features:
 ```
-REACT_APP_API_URL=https://your-ai-api-endpoint.com
+NEXT_PUBLIC_API_URL=
 ```
 
 ## 🛠️ Development
@@ -178,7 +173,8 @@ REACT_APP_API_URL=https://your-ai-api-endpoint.com
 ```
 src/
 ├── components/          # React components
-├── pages/              # Page components
+├── app/                # Next.js App Router and API routes
+├── legacy-pages/       # Existing game page components
 ├── services/           # Game logic and AI integration
 ├── utils/              # Utilities and optimizations
 ├── styles/             # CSS files
@@ -206,7 +202,7 @@ This project is licensed under the MIT License.
 ## 🆘 Support
 
 For issues with AI features:
-1. Check that the AI proxy server is running (if using external AI)
+1. Check the Vercel function logs and server-side environment variables
 2. Test with the included `test-validation.html` file
 3. Check the browser console for error messages
 4. Verify environment variables are set correctly
@@ -232,4 +228,4 @@ For issues with AI features:
 
 **Happy Detective Work! 🕵️‍♀️**
 
-*No backend required - everything runs in your browser!* 
+*The game state remains browser-local; AI requests run through secure server-side Next.js routes.*

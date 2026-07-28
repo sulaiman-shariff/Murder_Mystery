@@ -1,13 +1,12 @@
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import "./styles/App.css";
 
 // Lazy load all page components for better performance
-const Home = lazy(() => import("./pages/Home"));
-const GamePage = lazy(() => import("./pages/Game"));
-const Win = lazy(() => import("./pages/Win"));
-const Lost = lazy(() => import("./pages/Lost"));
-const Leaderboard = lazy(() => import("./pages/Leaderboard"));
+const Home = lazy(() => import("./legacy-pages/Home"));
+const GamePage = lazy(() => import("./legacy-pages/Game"));
+const Win = lazy(() => import("./legacy-pages/Win"));
+const Lost = lazy(() => import("./legacy-pages/Lost"));
+const Leaderboard = lazy(() => import("./legacy-pages/Leaderboard"));
 
 // Loading component for suspense fallback
 const LoadingSpinner = () => (

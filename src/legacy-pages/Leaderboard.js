@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { optimizedAPI } from '../utils/apiOptimizer';
-import "../styles/Leaderboard.css";
 
 function Leaderboard() {
   const navigate = useNavigate();
@@ -16,7 +15,7 @@ function Leaderboard() {
     try {
       setLoading(true);
       const data = await optimizedAPI.getLeaderboard(50);
-      setLeaderboard(data || []);
+      setLeaderboard(data?.leaderboard || data || []);
     } catch (error) {
       console.error("Failed to fetch leaderboard:", error);
     } finally {
@@ -93,4 +92,4 @@ function Leaderboard() {
   );
 }
 
-export default Leaderboard; 
+export default Leaderboard;

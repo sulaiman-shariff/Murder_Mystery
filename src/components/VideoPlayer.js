@@ -1,9 +1,9 @@
 import React from "react";
 
 const videoSources = [
-  process.env.PUBLIC_URL + "/assets/vdo1.mp4",
-  process.env.PUBLIC_URL + "/assets/vdo2.mp4",
-  process.env.PUBLIC_URL + "/assets/vdo3.mp4",
+  "/assets/vdo1.mp4",
+  "/assets/vdo2.mp4",
+  "/assets/vdo3.mp4",
 ];
 
 function VideoPlayer({ mysteryIndex }) {

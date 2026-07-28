@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "../styles/Timer.css";
 
 function FlipTimer({ initialTime = 900 }) {
   const navigate = useNavigate();

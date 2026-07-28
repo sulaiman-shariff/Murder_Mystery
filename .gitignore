@@ -15,6 +15,9 @@ mm.zip
 
 # production
 /build
+/.next
+/.vercel
+.next-start*.log
 
 # misc
 .DS_Store
@@ -22,6 +25,11 @@ mm.zip
 .env.development.local
 .env.test.local
 .env.production.local
+.env
+
+# Never commit service-account credentials. Configure Vercel with
+# GOOGLE_SERVICE_ACCOUNT_JSON instead.
+src/*.json
 
 npm-debug.log*
 yarn-debug.log*

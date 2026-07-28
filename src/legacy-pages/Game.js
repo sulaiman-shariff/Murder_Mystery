@@ -2,10 +2,9 @@ import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from
 import mysteries from "../data/mysteries";
 import { useNavigate, useParams } from "react-router-dom";
 import { optimizedAPI } from "../utils/apiOptimizer";
-import "../styles/Game.css";
 
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 // Lazy load AIResponse component
 const AIResponse = lazy(() => import("../components/AIResponse"));
@@ -153,7 +152,7 @@ function GamePage() {
   useEffect(() => {
     async function fetchProgress() {
       try {
-        const data = optimizedAPI.getTeamStats(teamName);
+        const data = await optimizedAPI.getTeamStats(teamName);
         // data.games is an array of completed mysteries
         if (data && data.games) {
           setSolvedMysteries(data.games.map(g => g.mysteryId || g.mystery_id || g.id));
@@ -181,6 +180,17 @@ function GamePage() {
 
   const sendStatsToBackend = useCallback(async (mysteryId, time, completed = true, wrongAttemptsVal = 0, hintsUsedVal = 0, scoreVal = 0) => {
     try {
+      const result = await optimizedAPI.saveResult(
+        teamName,
+        parseInt(mysteryId),
+        parseInt(time),
+        wrongAttemptsVal,
+        hintsUsedVal,
+        scoreVal,
+        completed
+      );
+      if (result?.success) console.log("Game stats saved successfully.");
+      /*
       const response = await fetch(`${API_BASE_URL}/save_result`, {
         method: "POST",
         headers: {
@@ -205,6 +215,7 @@ function GamePage() {
           console.log("Game stats sent to backend successfully.");
         }
       }
+      */
     } catch (error) {
       console.error("Error sending game stats:", error);
     }

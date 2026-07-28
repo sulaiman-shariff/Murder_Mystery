@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { optimizedAPI } from "../utils/apiOptimizer";
-import "./AIResponse.css";
 
 function AIResponse({ mysteryId }) {
   const [question, setQuestion] = useState("");

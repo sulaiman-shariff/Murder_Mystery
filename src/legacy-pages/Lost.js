@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import "../styles/Lost.css";
 
 const Lost = () => {
     useEffect(() => {

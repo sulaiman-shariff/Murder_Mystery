@@ -2,7 +2,9 @@
 import axios from 'axios';
 
 // API Configuration for Vertex AI proxy
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+// Use the same Next.js deployment by default; an absolute URL remains
+// available for local testing against an external API.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 // Create axios instance for AI services
 const api = axios.create({

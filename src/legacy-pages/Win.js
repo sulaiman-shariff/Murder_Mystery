@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "../styles/Win.css";
 
 function Win() {
 	const [stats, setStats] = useState([]);
