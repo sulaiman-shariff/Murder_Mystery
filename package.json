@@ -1,56 +1,32 @@
 {
     "name": "ai-murder-mystery",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "private": true,
     "engines": {
         "node": ">=20.9.0"
     },
     "dependencies": {
-        "@mui/icons-material": "^6.4.8",
-        "@mui/material": "^6.4.8",
-        "axios": "^1.8.4",
-        "cra-template-pwa": "2.0.0",
-        "framer-motion": "^12.5.0",
-        "google-auth-library": "^10.2.0",
+        "@supabase/ssr": "^0.6.1",
+        "@supabase/supabase-js": "^2.49.4",
         "next": "^16.2.9",
+        "pg": "^8.22.0",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
-        "react-router-dom": "^7.4.0",
-        "react-scripts": "5.0.1",
-        "tailwindcss": "^4.0.14",
-        "web-vitals": "^4.2.4"
+        "tailwindcss": "^4.0.14"
     },
     "scripts": {
         "dev": "next dev",
         "start": "next start",
-        "start:dev": "next dev",
-        "client": "next dev",
-        "server": "next start",
         "build": "next build",
-        "build:dev": "next build",
-        "analyze-bundle": "npx webpack-bundle-analyzer build/static/js/*.js",
-        "test": "react-scripts test",
-        "eject": "react-scripts eject"
-    },
-    "eslintConfig": {
-        "extends": [
-            "react-app",
-            "react-app/jest"
-        ]
-    },
-    "browserslist": {
-        "production": [
-            ">0.2%",
-            "not dead",
-            "not op_mini all"
-        ],
-        "development": [
-            "last 1 chrome version",
-            "last 1 firefox version",
-            "last 1 safari version"
-        ]
+        "lint": "next lint",
+        "typecheck": "tsc --noEmit"
     },
     "devDependencies": {
-        "webpack-bundle-analyzer": "^4.9.0"
+        "@eslint/eslintrc": "^3",
+        "@next/eslint-plugin-next": "^16.2.9",
+        "@types/node": "^22.14.1",
+        "@types/react": "^19.1.2",
+        "@types/react-dom": "^19.1.2",
+        "typescript": "^5.8.3"
     }
 }
