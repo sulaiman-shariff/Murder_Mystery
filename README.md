@@ -80,8 +80,11 @@ Configure the server-side Vertex AI integration with:
    ```
    GOOGLE_CLOUD_PROJECT=striped-sight-443116-g6
    GOOGLE_CLOUD_LOCATION=us-central1
-   GOOGLE_SERVICE_ACCOUNT_JSON={...}
+   AI_API_KEY=your_gemini_api_key
+   AI_MODEL=gemini-3.5-flash-lite
    ```
+
+`AI_API_KEY` is server-only and takes precedence over Vertex service-account authentication.
 
 The browser uses the same deployment's `/api` endpoints by default. Set `NEXT_PUBLIC_API_URL` only if you intentionally use an external API.
 
@@ -158,7 +161,7 @@ gameService.clearAllData();
 
 2. **Deploy to your preferred platform**
    - Import the repository into Vercel (framework preset: Next.js)
-   - Add `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, and `GOOGLE_SERVICE_ACCOUNT_JSON` in Project Settings → Environment Variables
+   - Add `AI_API_KEY` (and optionally `AI_MODEL`) in Project Settings → Environment Variables. Vertex variables remain available as a fallback.
    - Deploy; Vercel runs `npm run build`
 
 ### Environment Variables

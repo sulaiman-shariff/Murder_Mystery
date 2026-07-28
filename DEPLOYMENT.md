@@ -6,9 +6,11 @@ The app is now a single Next.js project. The existing game screens are served by
 
 1. Import this repository into Vercel and keep the framework preset as **Next.js**.
 2. Add these server-side environment variables in the Vercel project settings:
+   - `AI_API_KEY` containing the Gemini API key (recommended; never prefix with `NEXT_PUBLIC_`)
+   - `AI_MODEL` (optional; defaults to `gemini-3.5-flash-lite`)
    - `GOOGLE_CLOUD_PROJECT` (for example `striped-sight-443116-g6`)
    - `GOOGLE_CLOUD_LOCATION` (for example `us-central1`)
-   - `GOOGLE_SERVICE_ACCOUNT_JSON` containing the service-account JSON as one-line JSON
+   - `GOOGLE_SERVICE_ACCOUNT_JSON` containing the service-account JSON as one-line JSON (fallback when `AI_API_KEY` is unset)
 3. Leave `NEXT_PUBLIC_API_URL` unset to use the same deployment's `/api` routes. Set it only when intentionally using an external API.
 4. Deploy. Vercel runs `npm run build` and serves the frontend and API routes from the same domain.
 
