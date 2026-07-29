@@ -384,27 +384,74 @@ export default function AdminPage() {
 
   if (!authenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4 bg-dark-900">
-        <div className="w-full max-w-sm">
-          <div className="mb-10 text-center">
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border-2 border-gold/30 bg-dark-800">
-              <span className="text-4xl">&#x1F575;</span>
+      <div style={{
+        display: "flex",
+        minHeight: "100vh",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "0 16px",
+        backgroundColor: "#0a0a0a",
+        fontFamily: '"Courier New", monospace',
+      }}>
+        <div style={{ width: "100%", maxWidth: 360 }}>
+          <div style={{ marginBottom: 40, textAlign: "center" }}>
+            <div style={{
+              width: 80,
+              height: 80,
+              margin: "0 auto 24px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              border: "2px solid rgba(212,168,67,0.3)",
+              backgroundColor: "#111111",
+            }}>
+              <span style={{ fontSize: 36 }}>&#x1F575;</span>
             </div>
-            <h1 className="text-xl font-bold tracking-[0.3em] text-gold uppercase">
+            <h1 style={{
+              fontSize: 20,
+              fontWeight: 700,
+              letterSpacing: "0.3em",
+              color: "#d4a843",
+              textTransform: "uppercase",
+              margin: 0,
+            }}>
               Admin
             </h1>
-            <p className="mt-2 text-xs tracking-[0.2em] text-text-muted uppercase">
+            <p style={{
+              marginTop: 8,
+              fontSize: 10,
+              letterSpacing: "0.2em",
+              color: "#666666",
+              textTransform: "uppercase",
+            }}>
               Restricted Access
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div className="relative">
-              <label className="mb-2 block text-[10px] font-medium tracking-[0.2em] text-text-muted uppercase">
+          <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div>
+              <label style={{
+                display: "block",
+                marginBottom: 8,
+                fontSize: 10,
+                fontWeight: 500,
+                letterSpacing: "0.2em",
+                color: "#666666",
+                textTransform: "uppercase",
+              }}>
                 Passcode
               </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted text-sm">
+              <div style={{ position: "relative" }}>
+                <span style={{
+                  position: "absolute",
+                  left: 16,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "#666",
+                  fontSize: 14,
+                  pointerEvents: "none",
+                }}>
                   &#x1F512;
                 </span>
                 <input
@@ -413,8 +460,28 @@ export default function AdminPage() {
                   onChange={(e) => setPasscode(e.target.value)}
                   placeholder="&#8226; &#8226; &#8226; &#8226; &#8226; &#8226;"
                   autoFocus
-                  className="w-full rounded-lg border-2 border-border-dark bg-dark-800 py-3.5 pl-11 pr-4 text-base text-text-primary placeholder:text-text-muted/40 focus:border-gold/50 focus:outline-none focus:ring-4 focus:ring-gold/10 transition-all duration-300"
-                  style={{ fontSize: "16px", letterSpacing: "0.3em" }}
+                  style={{
+                    width: "100%",
+                    padding: "14px 16px 14px 44px",
+                    fontSize: 16,
+                    letterSpacing: "0.3em",
+                    borderRadius: 8,
+                    border: "2px solid #2a2a2a",
+                    backgroundColor: "#111111",
+                    color: "#e0e0e0",
+                    outline: "none",
+                    boxSizing: "border-box",
+                    fontFamily: '"Courier New", monospace',
+                    transition: "border-color 0.3s",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "rgba(212,168,67,0.5)";
+                    e.target.style.boxShadow = "0 0 0 4px rgba(212,168,67,0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "#2a2a2a";
+                    e.target.style.boxShadow = "none";
+                  }}
                 />
               </div>
             </div>
@@ -422,11 +489,35 @@ export default function AdminPage() {
             <button
               type="submit"
               disabled={loading || !passcode.trim()}
-              className="w-full rounded-lg bg-gold py-3.5 text-sm font-bold uppercase tracking-[0.2em] text-dark-900 transition-all duration-300 hover:bg-gold-light disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                width: "100%",
+                padding: "14px 24px",
+                borderRadius: 8,
+                backgroundColor: loading || !passcode.trim() ? "rgba(212,168,67,0.3)" : "#d4a843",
+                color: "#0a0a0a",
+                fontWeight: 700,
+                fontSize: 13,
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                border: "none",
+                cursor: loading || !passcode.trim() ? "not-allowed" : "pointer",
+                fontFamily: '"Courier New", monospace',
+                transition: "background-color 0.2s",
+              }}
+              onMouseEnter={(e) => { if (!loading && passcode.trim()) e.currentTarget.style.backgroundColor = "#e8c56a"; }}
+              onMouseLeave={(e) => { if (!loading && passcode.trim()) e.currentTarget.style.backgroundColor = "#d4a843"; }}
             >
               {loading ? (
-                <span className="inline-flex items-center gap-2">
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-dark-900 border-t-transparent" />
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <span style={{
+                    display: "inline-block",
+                    width: 16,
+                    height: 16,
+                    borderRadius: "50%",
+                    border: "2px solid #0a0a0a",
+                    borderTopColor: "transparent",
+                    animation: "spin 0.6s linear infinite",
+                  }} />
                   Verifying...
                 </span>
               ) : (
@@ -436,12 +527,27 @@ export default function AdminPage() {
           </form>
 
           {error && (
-            <div className="mt-5 animate-[fadeIn_0.3s_ease] rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-center">
-              <p className="text-sm font-medium text-error">{error}</p>
+            <div style={{
+              marginTop: 20,
+              padding: "12px 16px",
+              borderRadius: 8,
+              border: "1px solid rgba(196,30,58,0.3)",
+              backgroundColor: "rgba(196,30,58,0.1)",
+              textAlign: "center",
+              animation: "fadeIn 0.3s ease",
+            }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "#c41e3a" }}>{error}</p>
             </div>
           )}
 
-          <p className="mt-10 text-center text-[10px] tracking-[0.3em] text-text-muted/50 uppercase">
+          <p style={{
+            marginTop: 40,
+            textAlign: "center",
+            fontSize: 10,
+            letterSpacing: "0.3em",
+            color: "rgba(102,102,102,0.5)",
+            textTransform: "uppercase",
+          }}>
             Murder Mystery v3
           </p>
         </div>
