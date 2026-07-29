@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-export const dynamic = "force-dynamic";
 import { Card } from "@/components/ui/card";
 
 type TabId = "dashboard" | "teams" | "settings" | "ai-logs" | "leaderboard";
@@ -93,6 +91,8 @@ function formatTime(seconds: number) {
   const s = seconds % 60;
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
+
+export const dynamic = "force-dynamic";
 
 export default function AdminPage() {
   const [passcode, setPasscode] = useState("");

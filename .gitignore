@@ -42,3 +42,5 @@ playwright-report/
 
 # Build artifacts
 tsconfig.tsbuildinfo
+.vercel
+.env*
