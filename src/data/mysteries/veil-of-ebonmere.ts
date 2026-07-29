@@ -197,8 +197,14 @@ export const veilOfEbonmere: Mystery = {
       "Elimination of a dangerous threat to the realm's balance",
       "An oath to an unseen force demanding sacrifice",
     ],
+    commonIncorrectMotiveInterpretations: [
+      "A political power grab for the throne",
+      "Jealousy over Aldren's relationship with another court member",
+      "A ritual sacrifice to gain power for herself",
+      "Revenge for a personal slight or betrayal",
+    ],
     explanation:
-      "Lady Seraphine Voss was Aldren Thalor's most trusted ally — his confidante, his seer, and the keeper of the prophecy. As the veil between worlds thinned, Aldren's visions grew increasingly powerful. He began seeing truths that were never meant to be revealed: the true nature of the veil, the entities beyond it, and the fragile balance that kept Ebonmere safe. Seraphine knew that if Aldren continued to share these visions, he would draw the attention of the darkness beyond the veil. Bound by her ancient oath as seer of Ebonmere, she made the impossible choice. She deactivated the wards — a sequence only she and Aldren knew — entered the Grand Hall, and confronted him. In his moment of trust, she used his own obsidian dagger, a ritual tool, to end his life. The carved message — 'The veil is thinning. He saw too much' — was both a warning and a confession. The torn fragment of her robe at the scene was the one detail she missed in her escape. Her grief is genuine — she loved Aldren as a friend — but her duty to the realm outweighed all else.",
+      "Lady Seraphine Voss was Aldren Thalor's most trusted ally — his confidante, his seer, and the keeper of the prophecy. As the veil between worlds thinned, Aldren's visions grew increasingly powerful. He began seeing truths that were never meant to be revealed: the true nature of the veil, the entities beyond it, and the fragile balance that kept Ebonmere safe. Seraphine knew that if Aldren continued to share these visions, he would draw the attention of the darkness beyond the veil. Bound by her ancient oath as seer of Ebonmere, she made the impossible choice. She deactivated the wards — a sequence known to only a trusted few — entered the Grand Hall, and confronted him. In his moment of trust, she used his own obsidian dagger, a ritual tool, to end his life. The carved message — 'The veil is thinning. He saw too much' — was both a warning and a confession. The torn fragment of her robe at the scene was the one detail she missed in her escape. Her grief is genuine — she loved Aldren as a friend — but her duty to the realm outweighed all else.",
     decisiveEvidenceIds: [
       "prophecy-scroll",
       "ward-logs",

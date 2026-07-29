@@ -64,7 +64,7 @@ export const gildedRoseMansion: Mystery = {
         "I've been waiting for my chance. But Charles was too proud to see my potential. He wouldn't let me take charge. It's always been Lydia's way or no way.",
       alibi: "Claims he was in the parlor when the murder occurred",
       suspiciousDetails: [
-        "Charles consistently overlooked him in favor of his own children",
+        "Charles consistently overlooked him in favor of his only child",
         "His attempts to prove himself were met with rejection",
         "Deep resentment toward his uncle",
         "His anger feels personal and long-nurtured",
@@ -224,6 +224,12 @@ export const gildedRoseMansion: Mystery = {
       "Revenge for a past deception hidden within the mansion's walls",
       "A vendetta fueled by professional jealousy and wounded pride",
       "Retaliation for having his life's work destroyed",
+    ],
+    commonIncorrectMotiveInterpretations: [
+      "A business dispute or financial disagreement",
+      "Simple jealousy over talent or status",
+      "A crime of opportunity during a robbery",
+      "Romantic rivalry or love triangle",
     ],
     explanation:
       "Jonathan Reed was Charles Rayburn's most trusted artist, commissioned to create a masterpiece that would define both their legacies. When Charles unexpectedly pulled funding, claiming the project was too expensive, Jonathan felt personally betrayed. The burned canvas in the fireplace was Jonathan's way of destroying what he couldn't have. He came to the study that night to plead his case one last time, but Charles's dismissal pushed him over the edge. The letter opener — the murder weapon — came from Charles's own desk, suggesting a crime of passion rather than premeditation.",

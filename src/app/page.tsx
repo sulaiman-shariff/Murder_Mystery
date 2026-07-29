@@ -35,7 +35,7 @@ export default function HomePage() {
       setTeamName(team.name);
       setEventCode(team.eventCode);
     } else {
-      setEventCode("ATRIA");
+      setEventCode(process.env.NEXT_PUBLIC_DEFAULT_EVENT_CODE || "");
     }
   }, []);
 

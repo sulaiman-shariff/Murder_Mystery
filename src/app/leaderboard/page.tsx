@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-const DEFAULT_EVENT_ID = "d431c5d2-a078-42fe-addc-4483145692d1";
 
 interface Entry {
   rank: number;
@@ -20,24 +18,48 @@ export default function LeaderboardPage() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [lastUpdated, setLastUpdated] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [eventCode, setEventCode] = useState(typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_DEFAULT_EVENT_CODE || "") : "");
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
-      const res = await fetch(`/api/leaderboard?eventId=${DEFAULT_EVENT_ID}`);
+      const res = await fetch(`/api/leaderboard?eventId=${encodeURIComponent(eventCode)}`);
+      if (!res.ok) throw new Error("Failed to load leaderboard");
       const data = await res.json();
       setEntries(data.leaderboard || []);
       setLastUpdated(data.lastUpdated);
-    } catch {
-      setEntries([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load leaderboard data");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [eventCode]);
 
   useEffect(() => {
     loadData();
+    autoRefreshRef.current = setInterval(loadData, 60000);
+    return () => {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    };
   }, [loadData]);
+
+  function exportCSV() {
+    const header = "Rank,Team,Score,Mysteries Completed,Total Time (s),Hints Used,Wrong Attempts";
+    const rows = entries.map(
+      (e) => `${e.rank},"${e.teamName}",${e.totalScore},${e.mysteriesCompleted},${e.totalTime},${e.hintsUsed},${e.wrongAttempts}`
+    );
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leaderboard-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function formatTime(seconds: number) {
     const m = Math.floor(seconds / 60);
@@ -52,7 +74,13 @@ export default function LeaderboardPage() {
           Leaderboard
         </h1>
 
-        {loading ? (
+        {error && (
+          <Card className="mb-4 border-error/30 bg-error/5 p-3 text-center">
+            <p className="text-xs text-error">{error}</p>
+          </Card>
+        )}
+
+        {loading && entries.length === 0 ? (
           <Card className="p-6 text-center">
             <p className="text-sm text-text-muted">Loading...</p>
           </Card>
@@ -91,6 +119,8 @@ export default function LeaderboardPage() {
                     <p className="text-[10px] text-text-muted">
                       {entry.mysteriesCompleted} case
                       {entry.mysteriesCompleted !== 1 ? "s" : ""} completed
+                      {" · "}
+                      {formatTime(entry.totalTime)}
                     </p>
                   </div>
                   <div className="text-right">
@@ -98,7 +128,7 @@ export default function LeaderboardPage() {
                       {entry.totalScore}
                     </p>
                     <p className="text-[10px] text-text-muted">
-                      {entry.hintsUsed} hints &middot;{" "}
+                      {entry.hintsUsed} hints ·{" "}
                       {entry.wrongAttempts} wrong
                     </p>
                   </div>
@@ -114,10 +144,15 @@ export default function LeaderboardPage() {
           </p>
         )}
 
-        <div className="mt-6 flex justify-center gap-4">
+        <div className="mt-6 flex justify-center gap-4 flex-wrap">
           <Button variant="ghost" size="sm" onClick={loadData}>
             Refresh
           </Button>
+          {entries.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={exportCSV}>
+              Export CSV
+            </Button>
+          )}
           <a
             href="/"
             className="text-xs uppercase tracking-wider text-text-muted hover:text-gold transition-colors"

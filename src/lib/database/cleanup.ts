@@ -1,10 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server-admin";
 
 const STALE_HOURS = 24;
 
 export async function cleanupStaleSessions(teamId: string): Promise<number> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const cutoff = new Date(Date.now() - STALE_HOURS * 60 * 60 * 1000).toISOString();
 
     const { data, error } = await supabase

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server-admin";
 import type { AiInteractionType } from "@/types";
 
 export async function logAiInteraction(
@@ -8,7 +8,7 @@ export async function logAiInteraction(
   aiOutput: string
 ): Promise<void> {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     await supabase.from("ai_interactions").insert({
       session_id: sessionId || null,
       type,

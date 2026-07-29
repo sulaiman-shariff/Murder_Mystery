@@ -1,14 +1,14 @@
 const { Client } = require("pg");
 
-const PASSWORD = "Code.Club@atria";
-const PROJECT_REF = "nylhmyuqgfxobthkntvh";
-const HOST = "aws-0-ap-northeast-1.pooler.supabase.com";
-const USER = `postgres.${PROJECT_REF}`;
+const DATABASE_URL = process.env.DATABASE_URL;
 
-const connectionString = `postgresql://${USER}:${encodeURIComponent(PASSWORD)}@${HOST}:5432/postgres`;
+if (!DATABASE_URL) {
+  console.error("DATABASE_URL environment variable is required");
+  process.exit(1);
+}
 
 async function run() {
-  const client = new Client({ connectionString, connectionTimeoutMillis: 15000 });
+  const client = new Client({ connectionString: DATABASE_URL, connectionTimeoutMillis: 15000 });
   await client.connect();
 
   const tables = await client.query(

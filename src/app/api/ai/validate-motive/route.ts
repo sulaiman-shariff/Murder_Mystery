@@ -40,6 +40,8 @@ export async function POST(request: NextRequest) {
       canonicalMotive: mystery.solution.motiveSummary,
       requiredConcepts: mystery.solution.motiveRequiredConcepts,
       acceptableInterpretations: mystery.solution.acceptableMotiveInterpretations,
+      commonIncorrectInterpretations:
+        mystery.solution.commonIncorrectMotiveInterpretations || [],
       mysteryContext: `${mystery.title}: ${mystery.introduction}`,
     });
 
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest) {
         missingConcepts: [],
         feedback:
           "We couldn't validate that answer right now. Your attempt was not counted. Please try again.",
+        status: "unavailable",
       },
       { status: 200 }
     );

@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getMysteryById } from "@/data/mystery-index";
-import type { Mystery } from "@/types";
+import type { Mystery, GameSession } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -32,7 +32,6 @@ export default function PlayPage() {
   const [showSolve, setShowSolve] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [showDetective, setShowDetective] = useState(false);
-  const [hintLevel, setHintLevel] = useState(0);
   const [notes, setNotesState] = useState<Record<string, string>>({});
   const [importantEvidence, setImportantEvidence] = useState<string[]>([]);
   const [expandedSuspect, setExpandedSuspect] = useState<string | null>(null);
@@ -44,6 +43,8 @@ export default function PlayPage() {
     nextMysteryId: string | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dbSessionId, setDbSessionId] = useState<string | null>(null);
+  const [maxAttempts, setMaxAttempts] = useState(10);
 
   const session = useGameSession(mystery);
   const teamId = typeof window !== "undefined" ? getTeam()?.id : null;
@@ -54,46 +55,44 @@ export default function PlayPage() {
   useEffect(() => {
     const m = getMysteryById(mysteryId);
     setMystery(m || null);
+    if (!m) { setLoading(false); return; }
 
-    if (m) {
-      setNotesState(getNotes(m.id));
-      setImportantEvidence(getImportantEvidence(m.id));
-      setCompleted(isMysteryCompleted(m.id));
-      setLoading(false);
-    } else {
-      setLoading(false);
-    }
-  }, [mysteryId]);
+    setNotesState(getNotes(m.id));
+    setImportantEvidence(getImportantEvidence(m.id));
+    setCompleted(isMysteryCompleted(m.id));
 
-  useEffect(() => {
-    if (!mystery || !teamId) return;
+    if (!teamId) { setLoading(false); return; }
 
-    if (abortRef.current) abortRef.current.abort();
-    abortRef.current = new AbortController();
-
-    fetch(`/api/sessions/resume?teamId=${teamId}&mysteryId=${mystery.id}`, {
-      signal: abortRef.current.signal,
+    fetch("/api/sessions/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        teamId,
+        eventId: getTeam()?.eventId || "default",
+        mysteryId: m.id,
+      }),
     })
       .then((r) => r.json())
       .then((data) => {
-        if (data.session?.state) {
-          const s = data.session.state as Record<string, unknown>;
-          if (s.notes) setNotesState(s.notes as Record<string, string>);
-          if (s.importantEvidence) setImportantEvidence(s.importantEvidence as string[]);
-          if (typeof s.wrongAttempts === "number") session.setWrongAttempts(s.wrongAttempts);
-          if (typeof s.hintsUsed === "number") session.setHintsUsed(s.hintsUsed);
+        if (data.session) {
+          setDbSessionId(data.session.id);
+          if (typeof data.maxAttempts === "number") setMaxAttempts(data.maxAttempts);
+          if (data.session.state) {
+            const s = data.session.state as Record<string, unknown>;
+            if (s.notes) setNotesState(s.notes as Record<string, string>);
+            if (s.importantEvidence) setImportantEvidence(s.importantEvidence as string[]);
+            if (typeof s.wrongAttempts === "number") session.setWrongAttempts(s.wrongAttempts);
+            if (typeof s.hintsUsed === "number") session.setHintsUsed(s.hintsUsed);
+          }
         }
+        setLoading(false);
       })
-      .catch((err) => {
-        if (err.name !== "AbortError") {
-          // silently ignore failed resume
-        }
-      });
+      .catch(() => { setLoading(false); });
 
     return () => {
       abortRef.current?.abort();
     };
-  }, [mystery?.id, teamId]);
+  }, [mysteryId, teamId]);
 
   useEffect(() => {
     if (!mystery || !teamId) return;
@@ -138,13 +137,9 @@ export default function PlayPage() {
 
   useEffect(() => {
     if (completed && mystery && completionResult) {
-      if (completionResult.nextMysteryId) {
-        router.push(`/play/${completionResult.nextMysteryId}`);
-      } else {
-        router.push(
-          `/win?mysteryId=${mystery.id}&score=${completionResult.score}&time=${session.elapsedSeconds}`
-        );
-      }
+      router.push(
+        `/win?mysteryId=${mystery.id}&score=${completionResult.score}&time=${session.elapsedSeconds}${completionResult.nextMysteryId ? `&nextMysteryId=${completionResult.nextMysteryId}` : ""}`
+      );
     }
   }, [completed, mystery, completionResult, session.elapsedSeconds, router]);
 
@@ -163,7 +158,6 @@ export default function PlayPage() {
   }, [mysteryId, router]);
 
   const handleHintUsed = useCallback(() => {
-    setHintLevel((prev) => prev + 1);
     session.recordHint();
   }, [session.recordHint]);
 
@@ -224,7 +218,7 @@ export default function PlayPage() {
     { id: "suspects", label: "Suspects" },
     { id: "evidence", label: "Evidence" },
     { id: "timeline", label: "Timeline" },
-    { id: "solve", label: "Solve" },
+    ...(completed ? [] : [{ id: "solve" as TabId, label: "Solve" }]),
   ];
 
   const evidenceCategories = [
@@ -250,9 +244,10 @@ export default function PlayPage() {
             </p>
           </div>
           <div className="flex items-center gap-3 text-xs text-text-secondary">
+            {completed && <span className="text-gold text-[10px] uppercase">Completed</span>}
             <span className="tabular-nums">{formatTimer(session.elapsedSeconds)}</span>
             <span className="text-text-muted">|</span>
-            <span>Attempts: {session.wrongAttempts}/10</span>
+            <span>Attempts: {session.wrongAttempts}/{maxAttempts}</span>
           </div>
         </div>
 
@@ -411,6 +406,7 @@ export default function PlayPage() {
                         }
                         placeholder="Add your observations..."
                         className="w-full rounded border border-border-dark bg-dark-700 px-2 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50 min-h-[50px] resize-none"
+                        style={{ fontSize: "16px" }}
                       />
                     </div>
                   </div>
@@ -535,7 +531,7 @@ export default function PlayPage() {
           </div>
         )}
 
-        {activeTab === "solve" && (
+        {activeTab === "solve" && !completed && (
           <div className="space-y-4">
             <Card className="border-accent/30">
               <div className="text-center">
@@ -549,24 +545,22 @@ export default function PlayPage() {
               </div>
 
               <div className="flex flex-col gap-3">
-                <Button fullWidth onClick={() => setShowSolve(true)}>
+                <Button fullWidth onClick={() => setShowSolve(true)} className="min-h-[44px]">
                   Submit Your Answer
                 </Button>
                 <Button
                   variant="secondary"
                   fullWidth
-                  onClick={() => {
-                    setShowDetective(true);
-                  }}
+                  onClick={() => { setShowDetective(true); }}
+                  className="min-h-[44px]"
                 >
                   Ask the Detective
                 </Button>
                 <Button
                   variant="ghost"
                   fullWidth
-                  onClick={() => {
-                    setShowHint(true);
-                  }}
+                  onClick={() => { setShowHint(true); }}
+                  className="min-h-[44px]"
                 >
                   Request a Hint
                 </Button>
@@ -581,7 +575,7 @@ export default function PlayPage() {
                 <div>
                   <span className="text-text-muted">Attempts: </span>
                   <span className="text-text-primary">
-                    {session.wrongAttempts}/10
+                    {session.wrongAttempts}/{maxAttempts}
                   </span>
                 </div>
                 <div>
@@ -594,7 +588,53 @@ export default function PlayPage() {
             </Card>
           </div>
         )}
+
+        {completed && (
+          <div className="space-y-4">
+            <Card className="border-gold/30 bg-gold/5 text-center">
+              <div className="mb-1 text-2xl">&#x1F3C6;</div>
+              <p className="text-sm font-bold text-gold">Case Completed</p>
+              <p className="mt-1 text-xs text-text-secondary">
+                You solved this mystery. Review evidence or proceed to the leaderboard.
+              </p>
+            </Card>
+            <Button variant="ghost" fullWidth onClick={() => router.push("/leaderboard")}>
+              View Leaderboard
+            </Button>
+          </div>
+        )}
       </main>
+
+      <div className="sticky bottom-0 z-10 flex gap-2 border-t border-border-dark bg-dark-900/95 px-3 py-2 pb-[env(safe-area-inset-bottom,8px)]">
+        <Button
+          size="sm"
+          variant="secondary"
+          fullWidth
+          onClick={() => setShowDetective(true)}
+          className="min-h-[44px]"
+        >
+          Detective
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          fullWidth
+          onClick={() => setShowHint(true)}
+          className="min-h-[44px]"
+        >
+          Hint
+        </Button>
+        {!completed && (
+          <Button
+            size="sm"
+            fullWidth
+            onClick={() => setShowSolve(true)}
+            className="min-h-[44px]"
+          >
+            Solve
+          </Button>
+        )}
+      </div>
 
       {showSolve && mystery && (
         <SolveCase
@@ -602,6 +642,7 @@ export default function PlayPage() {
           elapsedSeconds={session.elapsedSeconds}
           wrongAttempts={session.wrongAttempts}
           hintsUsed={session.hintsUsed}
+          maxAttempts={maxAttempts}
           onComplete={handleComplete}
           onFail={handleFail}
           onWrongAttempt={session.recordWrongAttempt}
@@ -612,7 +653,7 @@ export default function PlayPage() {
       {showHint && mystery && (
         <HintPanel
           mystery={mystery}
-          currentLevel={hintLevel}
+          hintsUsed={session.hintsUsed}
           onHintUsed={handleHintUsed}
           onClose={() => setShowHint(false)}
         />

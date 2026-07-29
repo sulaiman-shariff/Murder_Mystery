@@ -16,17 +16,24 @@
     },
     "scripts": {
         "dev": "next dev",
-        "start": "next start",
         "build": "next build",
-        "lint": "next lint",
-        "typecheck": "tsc --noEmit"
+        "start": "next start",
+        "typecheck": "tsc --noEmit",
+        "lint": "eslint .",
+        "lint:fix": "eslint . --fix",
+        "migrate": "node scripts/run-migration.js",
+        "migrate:rls": "node scripts/run-migration.js supabase/migrations/002_rls_fix.sql",
+        "test:e2e": "playwright test"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3",
+        "@eslint/js": "^10.0.1",
         "@next/eslint-plugin-next": "^16.2.9",
+        "@playwright/test": "^1.62.0",
         "@types/node": "^22.14.1",
         "@types/react": "^19.1.2",
         "@types/react-dom": "^19.1.2",
+        "eslint": "^10.8.0",
         "typescript": "^5.8.3"
     }
 }

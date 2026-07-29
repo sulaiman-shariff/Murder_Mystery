@@ -3,28 +3,24 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getMysteryById, getMysteryByOrder, getAllMysteries } from "@/data/mystery-index";
+import { getMysteryById } from "@/data/mystery-index";
 import { useEffect, useState, Suspense } from "react";
 import type { Mystery } from "@/types";
+import { calculateScore, DEFAULT_SCORING } from "@/lib/game/scoring";
 
 function WinContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [mystery, setMystery] = useState<Mystery | null>(null);
-  const [nextMystery, setNextMystery] = useState<Mystery | null>(null);
 
   const mysteryId = searchParams.get("mysteryId") || "";
   const score = parseInt(searchParams.get("score") || "0");
   const time = parseInt(searchParams.get("time") || "0");
+  const nextMysteryId = searchParams.get("nextMysteryId") || null;
 
   useEffect(() => {
     const m = getMysteryById(mysteryId);
     setMystery(m || null);
-
-    if (m) {
-      const next = getMysteryByOrder(m.order + 1);
-      setNextMystery(next || null);
-    }
   }, [mysteryId]);
 
   function formatTime(seconds: number) {
@@ -32,6 +28,15 @@ function WinContent() {
     const s = seconds % 60;
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   }
+
+  const breakdown = (() => {
+    const timeMinutes = time / 60;
+    const timePenalty = Math.floor(timeMinutes * DEFAULT_SCORING.timePenaltyPerMinute);
+    const wrongPenalty = 0;
+    const hintPenalty = 0;
+    const bonus = timeMinutes < DEFAULT_SCORING.speedBonusThresholdMinutes ? DEFAULT_SCORING.speedBonus : 0;
+    return { base: DEFAULT_SCORING.baseScore, timePenalty, wrongPenalty, hintPenalty, bonus };
+  })();
 
   if (!mystery) {
     return (
@@ -69,6 +74,44 @@ function WinContent() {
 
         <Card className="mb-8 border-accent/30">
           <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-accent">
+            Score Breakdown
+          </h3>
+          <div className="space-y-1 text-xs text-text-secondary">
+            <div className="flex justify-between">
+              <span>Base score</span>
+              <span className="text-text-primary">+{breakdown.base}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Time penalty</span>
+              <span className="text-error">-{breakdown.timePenalty}</span>
+            </div>
+            {breakdown.wrongPenalty > 0 && (
+              <div className="flex justify-between">
+                <span>Wrong attempt penalty</span>
+                <span className="text-error">-{breakdown.wrongPenalty}</span>
+              </div>
+            )}
+            {breakdown.hintPenalty > 0 && (
+              <div className="flex justify-between">
+                <span>Hint penalty</span>
+                <span className="text-error">-{breakdown.hintPenalty}</span>
+              </div>
+            )}
+            {breakdown.bonus > 0 && (
+              <div className="flex justify-between">
+                <span>Speed bonus</span>
+                <span className="text-gold">+{breakdown.bonus}</span>
+              </div>
+            )}
+            <div className="border-t border-border-dark pt-1 flex justify-between font-bold">
+              <span>Final score</span>
+              <span className="text-gold">{score}</span>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="mb-8 border-accent/30">
+          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-accent">
             The Solution
           </h3>
           <div className="space-y-3 text-left text-sm">
@@ -103,14 +146,15 @@ function WinContent() {
         </Card>
 
         <div className="flex flex-col gap-3">
-          {nextMystery ? (
+          {nextMysteryId ? (
             <Button
               fullWidth
+              className="min-h-[44px]"
               onClick={() =>
-                router.push(`/play/${nextMystery.id}`)
+                router.push(`/play/${nextMysteryId}`)
               }
             >
-              Next Case: {nextMystery.title}
+              Next Case
             </Button>
           ) : (
             <Card className="border-gold/30 bg-gold/5 text-center">

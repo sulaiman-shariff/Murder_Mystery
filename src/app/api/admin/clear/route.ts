@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server-admin";
 import { requireAdmin } from "@/lib/auth/admin";
 
 export async function POST(request: NextRequest) {
@@ -7,10 +7,10 @@ export async function POST(request: NextRequest) {
     const authError = requireAdmin(request);
     if (authError) return authError;
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { error: sessionsErr } = await supabase
-      .from("game_sessions")
+      .from("ai_interactions")
       .delete()
       .neq("id", "00000000-0000-0000-0000-000000000000");
 
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { error: teamsErr } = await supabase
-      .from("teams")
+      .from("game_sessions")
       .delete()
       .neq("id", "00000000-0000-0000-0000-000000000000");
 
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { error: aiErr } = await supabase
-      .from("ai_interactions")
+      .from("teams")
       .delete()
       .neq("id", "00000000-0000-0000-0000-000000000000");
 

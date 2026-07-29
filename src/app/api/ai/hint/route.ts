@@ -20,9 +20,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (typeof level !== "number" || level < 0 || level > 10) {
+    if (typeof level !== "number" || level < 1 || level > 10) {
       return NextResponse.json(
-        { error: "level must be a number between 0 and 10" },
+        { error: "level must be a number between 1 and 10" },
         { status: 400 }
       );
     }
@@ -37,12 +37,15 @@ export async function POST(request: NextRequest) {
 
     const hintLevel = mystery.hintPlan.find((h) => h.level === level);
     if (!hintLevel) {
-      const message = "No more hints available. Trust your detective instincts!";
-      logAiInteraction(sessionId, "hint", `Level ${level}`, message);
-      return NextResponse.json({ hint: message, level }, { status: 200 });
+      return NextResponse.json({
+        success: false,
+        reason: "no_more_hints",
+        penaltyApplied: false,
+      });
     }
 
     let hint: string;
+    let source: "ai" | "fallback" = "ai";
     try {
       hint = await generateHint({
         mysteryContext: `${mystery.title}: ${mystery.introduction}`,
@@ -56,18 +59,26 @@ export async function POST(request: NextRequest) {
       });
     } catch {
       hint = hintLevel.objective;
+      source = "fallback";
     }
 
     logAiInteraction(sessionId, "hint", `Level ${level} requested`, hint);
-    return NextResponse.json({ hint, level });
+
+    return NextResponse.json({
+      success: true,
+      hint,
+      level,
+      penaltyApplied: true,
+    });
   } catch (err) {
     console.error("hint error:", err);
     return NextResponse.json(
       {
-        hint: "Hint generation unavailable right now. Please try again.",
-        level: 0,
+        success: false,
+        reason: "unavailable",
+        penaltyApplied: false,
       },
-      { status: 200 }
+      { status: 500 }
     );
   }
 }

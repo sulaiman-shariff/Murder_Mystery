@@ -3,6 +3,7 @@ import { validateMurderer } from "@/lib/ai/client";
 import { getMysteryById } from "@/data/mystery-index";
 import { logAiInteraction } from "@/lib/database/ai-log";
 import { checkRateLimit } from "@/lib/rate-limit";
+import type { SuspectRecord } from "@/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,12 +36,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const suspects: SuspectRecord[] = mystery.suspects.map((s) => ({
+      id: s.id,
+      name: s.name,
+      role: s.role,
+      aliases: mystery.solution.murdererAliases.filter(
+        (a) => a.toLowerCase().includes(s.name.toLowerCase()) ||
+          s.name.toLowerCase().includes(a.toLowerCase())
+      ),
+    }));
+
     const result = await validateMurderer({
       guess,
       correctMurderer: mystery.solution.murderer,
-      aliases: mystery.solution.murdererAliases,
-      suspectNames: mystery.suspects.map((s) => s.name),
-      suspectRoles: mystery.suspects.map((s) => s.role),
+      suspects,
     });
 
     logAiInteraction(sessionId, "murderer_validation", guess, JSON.stringify(result));
@@ -56,6 +65,7 @@ export async function POST(request: NextRequest) {
         feedback:
           "We couldn't validate that answer right now. Your attempt was not counted. Please try again.",
         ambiguous: false,
+        status: "unavailable",
       },
       { status: 200 }
     );

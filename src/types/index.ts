@@ -62,6 +62,7 @@ export interface MysterySolution {
   motiveSummary: string;
   motiveRequiredConcepts: string[];
   acceptableMotiveInterpretations: string[];
+  commonIncorrectMotiveInterpretations: string[];
   explanation: string;
   decisiveEvidenceIds: string[];
 }
@@ -111,12 +112,22 @@ export interface ScoreResult {
 
 // ── AI types ──
 
+export type ValidationStatus = "correct" | "incorrect" | "ambiguous" | "unavailable";
+
+export interface SuspectRecord {
+  id: string;
+  name: string;
+  role: string;
+  aliases: string[];
+}
+
 export interface MurdererValidationResult {
   correct: boolean;
   confidence: number;
   matchedSuspectId: string | null;
   feedback: string;
   ambiguous: boolean;
+  status: ValidationStatus;
 }
 
 export interface MotiveValidationResult {
@@ -125,6 +136,7 @@ export interface MotiveValidationResult {
   matchedConcepts: string[];
   missingConcepts: string[];
   feedback: string;
+  status: ValidationStatus;
 }
 
 export interface HintRequest {
@@ -133,8 +145,11 @@ export interface HintRequest {
 }
 
 export interface HintResponse {
-  hint: string;
-  level: number;
+  success: boolean;
+  hint?: string;
+  level?: number;
+  penaltyApplied: boolean;
+  reason?: "no_more_hints" | "unavailable";
 }
 
 export interface DetectiveChatMessage {
@@ -157,6 +172,7 @@ export interface GameEvent {
   endsAt?: string;
   scoringSettings: ScoringSettings;
   currentMysteryLimit: number;
+  maxAttempts: number;
 }
 
 export interface Team {
@@ -185,6 +201,7 @@ export interface GameSession {
   wrongAttempts: number;
   hintsUsed: number;
   score: number;
+  elapsedSeconds: number;
   state: Record<string, unknown>;
   lastSavedAt: string;
 }

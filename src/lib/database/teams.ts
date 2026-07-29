@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server-admin";
 import type { Team } from "@/types";
 
 export async function registerTeam(
@@ -6,7 +6,7 @@ export async function registerTeam(
   pin: string,
   eventCode: string
 ): Promise<Team> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: event } = await supabase
     .from("events")
@@ -48,7 +48,7 @@ export async function loginTeam(
   pin: string,
   eventCode: string
 ): Promise<{ team: Team; eventId: string }> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: event } = await supabase
     .from("events")
@@ -84,7 +84,7 @@ export async function checkTeamNameAvailable(
   name: string,
   eventCode: string
 ): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: event } = await supabase
     .from("events")

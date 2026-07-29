@@ -1,17 +1,22 @@
 import type { GameSession, Team } from "@/types";
 import { getMysteryById, getMysteryByOrder } from "@/data/mystery-index";
 
-const KEYS = {
-  TEAM: "mm_team",
-  TEAMS_REGISTRY: "mm_teams_registry",
-  SESSION_PREFIX: "mm_session_",
-  TIMER_PREFIX: "mm_timer_",
-  COMPLETED: "mm_completed",
-  NOTES_PREFIX: "mm_notes_",
-  IMPORTANT_EVIDENCE: "mm_important_evidence",
-  WRONG_ATTEMPTS: "mm_wrong_attempts_",
-  HINTS_USED: "mm_hints_used_",
-};
+function key(eventId: string, teamId: string, sub: string): string {
+  return `mm:${eventId}:${teamId}:${sub}`;
+}
+
+function getTeamContext(): { eventId: string; teamId: string } | null {
+  try {
+    const raw = localStorage.getItem("mm_team");
+    if (!raw) return null;
+    const team = JSON.parse(raw);
+    return { eventId: team.eventId || "default", teamId: team.id || "unknown" };
+  } catch {
+    return null;
+  }
+}
+
+// ── Team ──
 
 interface LocalTeam {
   id: string;
@@ -22,12 +27,12 @@ interface LocalTeam {
 }
 
 export function saveTeam(team: LocalTeam): void {
-  localStorage.setItem(KEYS.TEAM, JSON.stringify(team));
+  localStorage.setItem("mm_team", JSON.stringify(team));
 }
 
 export function getTeam(): LocalTeam | null {
   try {
-    const raw = localStorage.getItem(KEYS.TEAM);
+    const raw = localStorage.getItem("mm_team");
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -35,15 +40,36 @@ export function getTeam(): LocalTeam | null {
 }
 
 export function clearTeam(): void {
-  localStorage.removeItem(KEYS.TEAM);
+  const ctx = getTeamContext();
+  if (ctx) {
+    const prefix = `mm:${ctx.eventId}:${ctx.teamId}:`;
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith(prefix))
+      .forEach((k) => localStorage.removeItem(k));
+  }
+  localStorage.removeItem("mm_team");
 }
 
+// ── Timer ──
+
 export function getTimerStart(mysteryId: string): number {
-  const key = KEYS.TIMER_PREFIX + mysteryId;
-  let start = localStorage.getItem(key);
+  const ctx = getTeamContext();
+  if (!ctx) return fallbackTimerStart(mysteryId);
+  const k = key(ctx.eventId, ctx.teamId, `${mysteryId}:timer`);
+  let start = localStorage.getItem(k);
   if (!start) {
     start = Date.now().toString();
-    localStorage.setItem(key, start);
+    localStorage.setItem(k, start);
+  }
+  return parseInt(start);
+}
+
+function fallbackTimerStart(mysteryId: string): number {
+  const k = `mm_timer_${mysteryId}`;
+  let start = localStorage.getItem(k);
+  if (!start) {
+    start = Date.now().toString();
+    localStorage.setItem(k, start);
   }
   return parseInt(start);
 }
@@ -53,30 +79,41 @@ export function getElapsedSeconds(mysteryId: string): number {
   return Math.floor((Date.now() - start) / 1000);
 }
 
+// ── Notes ──
+
 export function saveNotes(mysteryId: string, suspectId: string, notes: string): void {
-  const key = KEYS.NOTES_PREFIX + mysteryId;
+  const ctx = getTeamContext();
+  const prefix = ctx ? `mm:${ctx.eventId}:${ctx.teamId}` : "mm";
+  const k = `${prefix}:${mysteryId}:notes`;
   const all = getNotes(mysteryId);
   all[suspectId] = notes;
-  localStorage.setItem(key, JSON.stringify(all));
+  localStorage.setItem(k, JSON.stringify(all));
 }
 
 export function getNotes(mysteryId: string): Record<string, string> {
+  const ctx = getTeamContext();
+  const prefix = ctx ? `mm:${ctx.eventId}:${ctx.teamId}` : "mm";
+  const k = `${prefix}:${mysteryId}:notes`;
   try {
-    const raw = localStorage.getItem(KEYS.NOTES_PREFIX + mysteryId);
+    const raw = localStorage.getItem(k);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
   }
 }
 
+// ── Important Evidence ──
+
 export function toggleImportantEvidence(
   mysteryId: string,
   evidenceId: string
 ): boolean {
-  const key = KEYS.IMPORTANT_EVIDENCE + "_" + mysteryId;
+  const ctx = getTeamContext();
+  const prefix = ctx ? `mm:${ctx.eventId}:${ctx.teamId}` : "mm";
+  const k = `${prefix}:${mysteryId}:evidence`;
   let set: string[] = [];
   try {
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(k);
     set = raw ? JSON.parse(raw) : [];
   } catch {
     // ignore
@@ -87,28 +124,39 @@ export function toggleImportantEvidence(
   } else {
     set.push(evidenceId);
   }
-  localStorage.setItem(key, JSON.stringify(set));
+  localStorage.setItem(k, JSON.stringify(set));
   return idx < 0;
 }
 
 export function getImportantEvidence(mysteryId: string): string[] {
+  const ctx = getTeamContext();
+  const prefix = ctx ? `mm:${ctx.eventId}:${ctx.teamId}` : "mm";
+  const k = `${prefix}:${mysteryId}:evidence`;
   try {
-    const raw = localStorage.getItem(KEYS.IMPORTANT_EVIDENCE + "_" + mysteryId);
+    const raw = localStorage.getItem(k);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
+// ── Completed Mysteries ──
+
 export function markCompleted(mysteryId: string, score: number): void {
+  const ctx = getTeamContext();
+  const prefix = ctx ? `mm:${ctx.eventId}:${ctx.teamId}` : "mm";
+  const k = `${prefix}:completed`;
   const all = getCompletedMysteries();
   all[mysteryId] = { completedAt: Date.now(), score };
-  localStorage.setItem(KEYS.COMPLETED, JSON.stringify(all));
+  localStorage.setItem(k, JSON.stringify(all));
 }
 
 export function getCompletedMysteries(): Record<string, { completedAt: number; score: number }> {
+  const ctx = getTeamContext();
+  const prefix = ctx ? `mm:${ctx.eventId}:${ctx.teamId}` : "mm";
+  const k = `${prefix}:completed`;
   try {
-    const raw = localStorage.getItem(KEYS.COMPLETED);
+    const raw = localStorage.getItem(k);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
@@ -160,7 +208,7 @@ export function registerTeamLocal(
   };
 
   teams.push(team);
-  localStorage.setItem(KEYS.TEAMS_REGISTRY, JSON.stringify(teams));
+  localStorage.setItem("mm_teams_registry", JSON.stringify(teams));
   return team;
 }
 
@@ -182,13 +230,13 @@ export function loginTeamLocal(
   }
 
   team.lastActiveAt = new Date().toISOString();
-  localStorage.setItem(KEYS.TEAMS_REGISTRY, JSON.stringify(teams));
+  localStorage.setItem("mm_teams_registry", JSON.stringify(teams));
   return team;
 }
 
 export function getAllTeamsLocal(): RegistryTeam[] {
   try {
-    const raw = localStorage.getItem(KEYS.TEAMS_REGISTRY);
+    const raw = localStorage.getItem("mm_teams_registry");
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -205,9 +253,14 @@ export function checkTeamNameAvailableLocal(
   );
 }
 
+// ── Wrong Attempts ──
+
 export function getWrongAttempts(mysteryId: string): number {
+  const ctx = getTeamContext();
+  const prefix = ctx ? `mm:${ctx.eventId}:${ctx.teamId}` : "mm";
+  const k = `${prefix}:${mysteryId}:wrong`;
   try {
-    const raw = localStorage.getItem(KEYS.WRONG_ATTEMPTS + mysteryId);
+    const raw = localStorage.getItem(k);
     return raw ? parseInt(raw) : 0;
   } catch {
     return 0;
@@ -215,14 +268,22 @@ export function getWrongAttempts(mysteryId: string): number {
 }
 
 export function incrementWrongAttempts(mysteryId: string): number {
+  const ctx = getTeamContext();
+  const prefix = ctx ? `mm:${ctx.eventId}:${ctx.teamId}` : "mm";
+  const k = `${prefix}:${mysteryId}:wrong`;
   const current = getWrongAttempts(mysteryId) + 1;
-  localStorage.setItem(KEYS.WRONG_ATTEMPTS + mysteryId, current.toString());
+  localStorage.setItem(k, current.toString());
   return current;
 }
 
+// ── Hints ──
+
 export function getHintsUsed(mysteryId: string): number {
+  const ctx = getTeamContext();
+  const prefix = ctx ? `mm:${ctx.eventId}:${ctx.teamId}` : "mm";
+  const k = `${prefix}:${mysteryId}:hints`;
   try {
-    const raw = localStorage.getItem(KEYS.HINTS_USED + mysteryId);
+    const raw = localStorage.getItem(k);
     return raw ? parseInt(raw) : 0;
   } catch {
     return 0;
@@ -230,20 +291,30 @@ export function getHintsUsed(mysteryId: string): number {
 }
 
 export function incrementHintsUsed(mysteryId: string): number {
+  const ctx = getTeamContext();
+  const prefix = ctx ? `mm:${ctx.eventId}:${ctx.teamId}` : "mm";
+  const k = `${prefix}:${mysteryId}:hints`;
   const current = getHintsUsed(mysteryId) + 1;
-  localStorage.setItem(KEYS.HINTS_USED + mysteryId, current.toString());
+  localStorage.setItem(k, current.toString());
   return current;
 }
 
 export function resetMysteryProgress(mysteryId: string): void {
-  localStorage.removeItem(KEYS.WRONG_ATTEMPTS + mysteryId);
-  localStorage.removeItem(KEYS.HINTS_USED + mysteryId);
-  localStorage.removeItem(KEYS.TIMER_PREFIX + mysteryId);
-  localStorage.removeItem(KEYS.NOTES_PREFIX + mysteryId);
-  localStorage.removeItem(KEYS.IMPORTANT_EVIDENCE + "_" + mysteryId);
+  const ctx = getTeamContext();
+  if (!ctx) return;
+  const prefix = `mm:${ctx.eventId}:${ctx.teamId}:`;
+  const keys = [
+    `${prefix}${mysteryId}:wrong`,
+    `${prefix}${mysteryId}:hints`,
+    `${prefix}${mysteryId}:timer`,
+    `${prefix}${mysteryId}:notes`,
+    `${prefix}${mysteryId}:evidence`,
+  ];
+  keys.forEach((k) => localStorage.removeItem(k));
   const completed = getCompletedMysteries();
   delete completed[mysteryId];
-  localStorage.setItem(KEYS.COMPLETED, JSON.stringify(completed));
+  const ck = `${prefix}completed`;
+  localStorage.setItem(ck, JSON.stringify(completed));
 }
 
 export function getLeaderboardLocal(): {
@@ -263,8 +334,8 @@ export function getLeaderboardLocal(): {
   let totalHints = 0;
   let totalWrong = 0;
 
-  for (const [mysteryId, data] of Object.entries(completed)) {
-    totalScore += data.score;
+  for (const mysteryId of Object.keys(completed)) {
+    totalScore += completed[mysteryId].score;
     totalHints += getHintsUsed(mysteryId);
     totalWrong += getWrongAttempts(mysteryId);
   }
@@ -279,4 +350,26 @@ export function getLeaderboardLocal(): {
       wrongAttempts: totalWrong,
     },
   ];
+}
+
+// ── Reconciliation ──
+
+export function reconcileWithServer(mysteryId: string, dbState: {
+  wrongAttempts: number;
+  hintsUsed: number;
+  state?: Record<string, unknown>;
+}): void {
+  const ctx = getTeamContext();
+  if (!ctx) return;
+  const prefix = `mm:${ctx.eventId}:${ctx.teamId}:${mysteryId}`;
+
+  const localWrong = getWrongAttempts(mysteryId);
+  if (dbState.wrongAttempts > localWrong) {
+    localStorage.setItem(`${prefix}:wrong`, dbState.wrongAttempts.toString());
+  }
+
+  const localHints = getHintsUsed(mysteryId);
+  if (dbState.hintsUsed > localHints) {
+    localStorage.setItem(`${prefix}:hints`, dbState.hintsUsed.toString());
+  }
 }

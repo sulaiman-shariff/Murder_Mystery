@@ -94,12 +94,22 @@ export const hollowbrookAsylum: Mystery = {
       suspiciousDetails: [
         "Estranged from Elias for years",
         "Always resented his brother's cold ambition",
-        "Convenient alibi — arrived after the murder",
+        "Convenient alibi — claims to have arrived after the murder",
         "Grief seems genuine but old anger lingers beneath",
+        "His arrival time is not corroborated by any staff member",
       ],
     },
   ],
   evidence: [
+    {
+      id: "letter-opener",
+      title: "Bloodied Letter Opener",
+      description:
+        "A brass letter opener with a bloodied tip found near Dr. Thorne's desk. The wound appears consistent with a rapid, close-range strike — suggesting a crime of passion rather than premeditation.",
+      category: "physical",
+      relatedSuspectIds: ["daniel-mercer"],
+      unlockStage: 1,
+    },
     {
       id: "half-written-letter",
       title: "Half-Written Letter",
@@ -180,8 +190,8 @@ export const hollowbrookAsylum: Mystery = {
       relatedSuspectId: "eleanor-bishop",
     },
     {
-      time: "8:00 PM",
-      event: "Lawrence Thorne arrives at the asylum.",
+      time: "8:30 PM",
+      event: "Lawrence Thorne arrives at the asylum, having been called after the murder was discovered.",
       relatedSuspectId: "lawrence-thorne",
     },
     {
@@ -219,10 +229,17 @@ export const hollowbrookAsylum: Mystery = {
       "Personal vendetta against the man who ruined his life",
       "Desperate retaliation for medical abuse and torture",
     ],
+    commonIncorrectMotiveInterpretations: [
+      "The doctor was killed by a patient in a random violent episode",
+      "Insurance fraud or financial motive",
+      "A staff member's workplace grievance",
+      "Revenge for a failed medical treatment",
+    ],
     explanation:
       "Daniel Mercer was an investigative journalist who came to Hollowbrook posing as a patient to expose Dr. Thorne's unethical practices. When Thorne discovered the deception, he used his authority to have Mercer forcibly committed under a false identity. The experimental treatments — electroconvulsive therapy, sensory deprivation — were intended to break Mercer's mind and destroy his credibility. The treatments worked, causing a genuine psychotic break that erased Mercer's memory. But fragments returned — glimpses of who he was and what Thorne had done. The torn journal page ('He promised I would forget. But I remember everything') was Mercer's cry of awakening. On the night of the murder, Mercer confronted Thorne in his office. When Thorne reached for the sedative-laced coffee meant to silence him permanently, Mercer grabbed the letter opener and struck. The half-written letter was Thorne's confession — he knew he had gone too far.",
     decisiveEvidenceIds: [
       "torn-journal-page",
+      "letter-opener",
       "false-name-records",
       "patient-testimony",
     ],
@@ -230,14 +247,14 @@ export const hollowbrookAsylum: Mystery = {
   hintPlan: [
     {
       level: 1,
-      relevantEvidenceIds: ["half-written-letter", "shattered-coffee-mug"],
+      relevantEvidenceIds: ["half-written-letter", "letter-opener", "hidden-key"],
       objective: "Draw attention to Thorne's final moments",
       maximumRevelation:
         "Dr. Thorne was writing something important when he died — something he regretted.",
     },
     {
       level: 2,
-      relevantEvidenceIds: ["patient-testimony", "false-name-records"],
+      relevantEvidenceIds: ["patient-testimony", "letter-opener", "bloodstained-glove"],
       objective: "Encourage investigating the hospital records",
       maximumRevelation:
         "Someone was admitted under a false name — a patient who shouldn't exist in the system.",

@@ -1,10 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server-admin";
 import type { LeaderboardEntry } from "@/types";
 
 export async function getLeaderboard(
   eventId: string
 ): Promise<LeaderboardEntry[]> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: sessions } = await supabase
     .from("game_sessions")
@@ -13,6 +13,7 @@ export async function getLeaderboard(
       score,
       wrong_attempts,
       hints_used,
+      elapsed_seconds,
       status,
       started_at,
       completed_at,
@@ -45,6 +46,7 @@ export async function getLeaderboard(
       Array.isArray(teamJoin) ? teamJoin[0] : teamJoin
     )?.name as string | undefined;
     if (!teamName) continue;
+
     const entry = teamMap.get(teamName) || {
       teamName,
       totalScore: 0,
@@ -61,15 +63,20 @@ export async function getLeaderboard(
 
     if (session.status === "completed") {
       entry.mysteriesCompleted += 1;
-      if (
-        session.completed_at &&
-        session.started_at &&
-        (!entry.lastCompletion || session.completed_at > entry.lastCompletion)
-      ) {
-        entry.lastCompletion = session.completed_at;
+
+      if (session.elapsed_seconds) {
+        entry.totalTime += session.elapsed_seconds;
+      } else if (session.started_at && session.completed_at) {
         const start = new Date(session.started_at).getTime();
         const end = new Date(session.completed_at).getTime();
         entry.totalTime += Math.floor((end - start) / 1000);
+      }
+
+      if (
+        session.completed_at &&
+        (!entry.lastCompletion || session.completed_at > entry.lastCompletion)
+      ) {
+        entry.lastCompletion = session.completed_at;
       }
     }
 
