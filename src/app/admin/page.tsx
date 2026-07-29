@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+export const dynamic = "force-dynamic";
 import { Card } from "@/components/ui/card";
 
 type TabId = "dashboard" | "teams" | "settings" | "ai-logs" | "leaderboard";
