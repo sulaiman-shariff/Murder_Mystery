@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Murder Mystery",
   description: "An AI-powered murder mystery investigation game",
