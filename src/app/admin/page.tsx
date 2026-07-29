@@ -92,8 +92,6 @@ function formatTime(seconds: number) {
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
-export const dynamic = "force-dynamic";
-
 export default function AdminPage() {
   const [passcode, setPasscode] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
@@ -103,7 +101,7 @@ export default function AdminPage() {
 
   const [activeTab, setActiveTab] = useState<TabId>("dashboard");
   const [events, setEvents] = useState<EventInfo[]>([]);
-  const [selectedEventCode, setSelectedEventCode] = useState(typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_DEFAULT_EVENT_CODE || "") : "");
+  const [selectedEventCode, setSelectedEventCode] = useState("");
   const [teams, setTeams] = useState<TeamWithSessions[]>([]);
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [aiLogs, setAiLogs] = useState<AiLog[]>([]);
@@ -124,6 +122,10 @@ export default function AdminPage() {
     maxAttempts: 10,
     currentMysteryLimit: 3,
   });
+
+  useEffect(() => {
+    setSelectedEventCode(process.env.NEXT_PUBLIC_DEFAULT_EVENT_CODE || "");
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -470,7 +472,6 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* DASHBOARD */}
         {activeTab === "dashboard" && selectedEvent && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -538,7 +539,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* TEAMS */}
         {activeTab === "teams" && (
           <div className="space-y-2">
             <div className="flex items-center justify-between mb-2">
@@ -590,7 +590,7 @@ export default function AdminPage() {
                           <span className="rounded bg-dark-600 px-2 py-0.5 text-[10px] text-text-muted">
                             H:{currentSession?.hintsUsed || 0} W:{currentSession?.wrongAttempts || 0}
                           </span>
-                          <span className="text-text-muted text-sm">{isExpanded ? "\u25B2" : "\u25BC"}</span>
+                          <span className="text-text-muted text-sm">{isExpanded ? "▲" : "▼"}</span>
                         </div>
                       </div>
                     </button>
@@ -655,13 +655,12 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* SETTINGS */}
         {activeTab === "settings" && selectedEvent && (
           <div className="space-y-4">
             <Card>
               <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-gold">Scoring Configuration</h3>
               <div className="grid grid-cols-2 gap-3">
-                {[
+                {([
                   ["baseScore", "Base Score"],
                   ["wrongAttemptPenalty", "Wrong Attempt Penalty"],
                   ["hintPenalty", "Hint Penalty"],
@@ -669,7 +668,7 @@ export default function AdminPage() {
                   ["speedBonusThresholdMinutes", "Speed Bonus Threshold (min)"],
                   ["speedBonus", "Speed Bonus"],
                   ["minimumScore", "Minimum Score"],
-                ].map(([key, label]) => (
+                ] as [string, string][]).map(([key, label]) => (
                   <div key={key}>
                     <label className="mb-1 block text-[10px] uppercase tracking-wider text-text-muted">{label}</label>
                     <input
@@ -715,7 +714,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* AI LOGS */}
         {activeTab === "ai-logs" && (
           <div className="space-y-3">
             <div className="flex gap-2 flex-wrap">
@@ -765,7 +763,7 @@ export default function AdminPage() {
                         <span className="text-[10px] text-text-muted">
                           {new Date(log.created_at).toLocaleTimeString()}
                         </span>
-                        <span className="text-text-muted text-xs">{expandedLog === log.id ? "\u25B2" : "\u25BC"}</span>
+                        <span className="text-text-muted text-xs">{expandedLog === log.id ? "▲" : "▼"}</span>
                       </div>
                     </button>
                     {expandedLog === log.id && (
@@ -787,7 +785,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* LEADERBOARD */}
         {activeTab === "leaderboard" && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -811,7 +808,7 @@ export default function AdminPage() {
                 <Card key={entry.teamName + entry.rank} className={entry.rank <= 3 ? "border-gold/30" : "border-border-dark"}>
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-dark-700 text-xs font-bold text-text-secondary">
-                      {entry.rank === 1 ? "\uD83E\uDD47" : entry.rank === 2 ? "\uD83E\uDD48" : entry.rank === 3 ? "\uD83E\uDD49" : `#${entry.rank}`}
+                      {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : `#${entry.rank}`}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-text-primary truncate">{entry.teamName}</p>
