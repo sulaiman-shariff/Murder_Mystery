@@ -384,23 +384,67 @@ export default function AdminPage() {
 
   if (!authenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <Card className="w-full max-w-xs">
-          <h1 className="mb-4 text-center text-sm font-bold uppercase tracking-wider text-accent">
-            Admin Access
-          </h1>
-          <form onSubmit={handleLogin} className="flex flex-col gap-3">
-            <Input
-              label="Passcode"
-              type="password"
-              value={passcode}
-              onChange={(e) => setPasscode(e.target.value)}
-              placeholder="Enter admin passcode"
-            />
-            {error && <p className="text-center text-xs text-error">{error}</p>}
-            <Button type="submit" fullWidth loading={loading}>Enter</Button>
+      <div className="flex min-h-screen items-center justify-center px-4 bg-dark-900">
+        <div className="w-full max-w-sm">
+          <div className="mb-10 text-center">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border-2 border-gold/30 bg-dark-800">
+              <span className="text-4xl">&#x1F575;</span>
+            </div>
+            <h1 className="text-xl font-bold tracking-[0.3em] text-gold uppercase">
+              Admin
+            </h1>
+            <p className="mt-2 text-xs tracking-[0.2em] text-text-muted uppercase">
+              Restricted Access
+            </p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="relative">
+              <label className="mb-2 block text-[10px] font-medium tracking-[0.2em] text-text-muted uppercase">
+                Passcode
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted text-sm">
+                  &#x1F512;
+                </span>
+                <input
+                  type="password"
+                  value={passcode}
+                  onChange={(e) => setPasscode(e.target.value)}
+                  placeholder="&#8226; &#8226; &#8226; &#8226; &#8226; &#8226;"
+                  autoFocus
+                  className="w-full rounded-lg border-2 border-border-dark bg-dark-800 py-3.5 pl-11 pr-4 text-base text-text-primary placeholder:text-text-muted/40 focus:border-gold/50 focus:outline-none focus:ring-4 focus:ring-gold/10 transition-all duration-300"
+                  style={{ fontSize: "16px", letterSpacing: "0.3em" }}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !passcode.trim()}
+              className="w-full rounded-lg bg-gold py-3.5 text-sm font-bold uppercase tracking-[0.2em] text-dark-900 transition-all duration-300 hover:bg-gold-light disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-dark-900 border-t-transparent" />
+                  Verifying...
+                </span>
+              ) : (
+                "Authenticate"
+              )}
+            </button>
           </form>
-        </Card>
+
+          {error && (
+            <div className="mt-5 animate-[fadeIn_0.3s_ease] rounded-lg border border-error/30 bg-error/10 px-4 py-3 text-center">
+              <p className="text-sm font-medium text-error">{error}</p>
+            </div>
+          )}
+
+          <p className="mt-10 text-center text-[10px] tracking-[0.3em] text-text-muted/50 uppercase">
+            Murder Mystery v3
+          </p>
+        </div>
       </div>
     );
   }
