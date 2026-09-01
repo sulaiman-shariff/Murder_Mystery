@@ -12,11 +12,22 @@ const TTL_SECONDS = 12 * 60 * 60;
  * took the team's identity from the request body, so anyone who knew a teamId
  * could overwrite that team's game state or post scores as them.
  *
- * Falls back to ADMIN_PASSCODE as the signing key when SESSION_SECRET is not
- * set, so an existing deployment keeps working without a new env var.
+ * SESSION_SECRET must be its own value. It falls back to ADMIN_PASSCODE only so
+ * a deployment missing the variable still authenticates, but that coupling is
+ * a trap: rotating the admin passcode would then invalidate every team's
+ * cookie and sign the whole room out mid-event.
  */
+let warned = false;
+
 function secret(): string | undefined {
-  return process.env.SESSION_SECRET || process.env.ADMIN_PASSCODE;
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  if (!warned) {
+    warned = true;
+    console.warn(
+      "SESSION_SECRET is not set; falling back to ADMIN_PASSCODE. Changing the passcode will sign out every team."
+    );
+  }
+  return process.env.ADMIN_PASSCODE;
 }
 
 function sign(payload: string): string {

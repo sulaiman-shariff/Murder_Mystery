@@ -14,12 +14,15 @@ import type { Mystery } from "@/types";
  */
 export function ProofPicker({
   mystery,
+  stage,
   selected,
   onChange,
   maxSelections,
   disabled,
 }: {
   mystery: Mystery;
+  /** Only evidence the team has actually uncovered. */
+  stage?: number;
   selected: string[];
   onChange: (next: string[]) => void;
   maxSelections: number;
@@ -36,9 +39,9 @@ export function ProofPicker({
   }
 
   // Reading order, same as the evidence tab.
-  const items = [...mystery.evidence].sort(
-    (a, b) => (a.unlockStage ?? 0) - (b.unlockStage ?? 0)
-  );
+  const items = [...mystery.evidence]
+    .filter((item) => (item.unlockStage ?? 1) <= (stage ?? 4))
+    .sort((a, b) => (a.unlockStage ?? 0) - (b.unlockStage ?? 0));
 
   return (
     <div>
@@ -49,7 +52,7 @@ export function ProofPicker({
         <span
           className={cn(
             "font-mono text-xs tabular-nums",
-            atCap ? "text-gold" : "text-text-muted"
+            atCap ? "text-gold" : "text-text-muted",
           )}
           role="status"
         >
@@ -75,7 +78,7 @@ export function ProofPicker({
                     ? "border-accent bg-accent/10"
                     : "border-border-dark hover:border-border-mid",
                   isBlocked && "opacity-40",
-                  disabled && "cursor-not-allowed opacity-50"
+                  disabled && "cursor-not-allowed opacity-50",
                 )}
               >
                 <span
@@ -84,7 +87,7 @@ export function ProofPicker({
                     "flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border text-[11px]",
                     isChosen
                       ? "border-accent bg-accent text-white"
-                      : "border-border-mid text-transparent"
+                      : "border-border-mid text-transparent",
                   )}
                 >
                   ✓

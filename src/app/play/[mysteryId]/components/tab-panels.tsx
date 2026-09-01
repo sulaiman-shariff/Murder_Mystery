@@ -250,14 +250,21 @@ export function EvidencePanel({
   mystery,
   importantEvidence,
   onToggleEvidence,
+  stage,
+  actionsUntilNext,
 }: {
   mystery: Mystery;
   importantEvidence: string[];
   onToggleEvidence: (evidenceId: string) => void;
+  stage: number;
+  actionsUntilNext: number | null;
 }) {
   const [filter, setFilter] = useState<string>("all");
 
-  const visible = mystery.evidence.filter(
+  const unlocked = mystery.evidence.filter((item) => (item.unlockStage ?? 1) <= stage);
+  const pending = mystery.evidence.length - unlocked.length;
+
+  const visible = unlocked.filter(
     (item) => filter === "all" || item.category === filter
   );
 
@@ -283,10 +290,24 @@ export function EvidencePanel({
         ))}
       </div>
 
+      {pending > 0 && (
+        <Card tone="gold">
+          <p className="text-sm text-text-secondary">
+            {pending} more {pending === 1 ? "finding is" : "findings are"} still
+            coming back.{" "}
+            {actionsUntilNext
+              ? `Keep working the case — about ${actionsUntilNext} more ${
+                  actionsUntilNext === 1 ? "step" : "steps"
+                } should shake something loose.`
+              : "Give it a little longer."}
+          </p>
+        </Card>
+      )}
+
       {visible.length === 0 ? (
         <Card className="text-center">
           <p className="text-sm text-text-muted">
-            No evidence of this kind in the file.
+            No evidence of this kind in the file yet.
           </p>
         </Card>
       ) : (

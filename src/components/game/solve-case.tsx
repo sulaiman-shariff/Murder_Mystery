@@ -23,6 +23,7 @@ interface SolveCaseProps {
   wrongAttempts: number;
   maxSelections: number;
   importantEvidence: string[];
+  stage: number;
   onComplete: (result: SolveResult) => void;
   onFail: () => void;
   onRejected: (wrongAttempts: number) => void;
@@ -35,6 +36,7 @@ export function SolveCase({
   wrongAttempts,
   maxSelections,
   importantEvidence,
+  stage,
   onComplete,
   onFail,
   onRejected,
@@ -177,6 +179,7 @@ export function SolveCase({
 
         <ProofPicker
           mystery={mystery}
+          stage={stage}
           selected={proof}
           onChange={setProof}
           maxSelections={maxSelections}

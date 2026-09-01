@@ -18,6 +18,7 @@ import { DetectiveChat } from "@/components/game/detective-chat";
 import { useGameSession } from "@/lib/game/use-game-session";
 import { storeLastResult } from "@/lib/game/last-result";
 import { useSharedState } from "@/lib/game/use-shared-state";
+import { currentStage, actionsUntilNextStage } from "@/lib/game/stages";
 import { CaseHeader } from "./components/case-header";
 import {
   IntroPanel,
@@ -74,6 +75,20 @@ export default function PlayPage() {
     toggleEvidence,
     setPins,
   } = shared;
+
+  // How much of the case file has opened up. Engaging with the case advances
+  // it, and time advances it anyway so nobody can be stranded.
+  const progress = {
+    markedEvidence: importantEvidence.length,
+    notesWritten: Object.keys(notes).filter((id) => notes[id]?.trim()).length,
+    boardPins: boardPins.length,
+    hintsUsed: session.hintsUsed,
+    alibisChallenged: alibisBroken.length,
+    confrontationsUsed: shared.state.server.confrontationsUsed,
+    elapsedSeconds: session.elapsedSeconds,
+  };
+  const stage = currentStage(progress);
+  const stageHint = actionsUntilNextStage(progress);
   const teamId = typeof window !== "undefined" ? getTeam()?.id : null;
   const syncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSyncRef = useRef<Record<string, unknown> | null>(null);
@@ -240,6 +255,8 @@ export default function PlayPage() {
                 mystery={mystery}
                 importantEvidence={importantEvidence}
                 onToggleEvidence={toggleEvidence}
+                stage={stage}
+                actionsUntilNext={stageHint}
               />
             )}
 
@@ -248,6 +265,7 @@ export default function PlayPage() {
             {activeTab === "board" && (
               <BoardPanel
                 mystery={mystery}
+                stage={stage}
                 pins={boardPins}
                 onChange={setPins}
                 alibisBroken={alibisBroken}
@@ -351,6 +369,7 @@ export default function PlayPage() {
             wrongAttempts={session.wrongAttempts}
             maxSelections={maxSelections}
             importantEvidence={importantEvidence}
+            stage={stage}
             onComplete={handleComplete}
             onFail={handleFail}
             onRejected={session.setWrongAttempts}

@@ -22,11 +22,14 @@ import type { BoardPin, Mystery } from "@/types";
  */
 export function BoardPanel({
   mystery,
+  stage,
   pins,
   onChange,
   alibisBroken,
 }: {
   mystery: Mystery;
+  /** Only evidence the team has actually uncovered. */
+  stage?: number;
   pins: BoardPin[];
   onChange: (next: BoardPin[]) => void;
   alibisBroken: string[];
@@ -38,14 +41,14 @@ export function BoardPanel({
 
   function togglePin(suspectId: string, evidenceId: string) {
     const exists = pins.some(
-      (p) => p.suspectId === suspectId && p.evidenceId === evidenceId
+      (p) => p.suspectId === suspectId && p.evidenceId === evidenceId,
     );
     onChange(
       exists
         ? pins.filter(
-            (p) => !(p.suspectId === suspectId && p.evidenceId === evidenceId)
+            (p) => !(p.suspectId === suspectId && p.evidenceId === evidenceId),
           )
-        : [...pins, { suspectId, evidenceId, at: Date.now() }]
+        : [...pins, { suspectId, evidenceId, at: Date.now() }],
     );
   }
 
@@ -79,6 +82,7 @@ export function BoardPanel({
       <div className="hidden lg:block">
         <CorkBoard
           mystery={mystery}
+          stage={stage}
           pins={pins}
           alibisBroken={alibisBroken}
           onPickFor={setPinningFor}
@@ -91,18 +95,25 @@ export function BoardPanel({
           title={`Pin to ${activeSuspect.name}`}
           onClose={() => setPinningFor(null)}
           footer={
-            <Button fullWidth size="lg" variant="secondary" onClick={() => setPinningFor(null)}>
+            <Button
+              fullWidth
+              size="lg"
+              variant="secondary"
+              onClick={() => setPinningFor(null)}
+            >
               Done
             </Button>
           }
         >
           <ul className="space-y-1.5">
             {[...mystery.evidence]
+              .filter((item) => (item.unlockStage ?? 1) <= (stage ?? 4))
               .sort((a, b) => (a.unlockStage ?? 0) - (b.unlockStage ?? 0))
               .map((item) => {
                 const isPinned = pins.some(
                   (p) =>
-                    p.suspectId === activeSuspect.id && p.evidenceId === item.id
+                    p.suspectId === activeSuspect.id &&
+                    p.evidenceId === item.id,
                 );
                 return (
                   <li key={item.id}>
@@ -114,7 +125,7 @@ export function BoardPanel({
                         "flex min-h-11 w-full items-center gap-3 rounded border px-3 py-2 text-left transition-colors",
                         isPinned
                           ? "border-accent bg-accent/10"
-                          : "border-border-dark hover:border-border-mid"
+                          : "border-border-dark hover:border-border-mid",
                       )}
                     >
                       <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
@@ -200,12 +211,14 @@ function SuspectDrawer({
 /** Suspects in a column, clues in a column, links drawn between them. */
 function CorkBoard({
   mystery,
+  stage,
   pins,
   alibisBroken,
   onPickFor,
   onRemove,
 }: {
   mystery: Mystery;
+  stage?: number;
   pins: BoardPin[];
   alibisBroken: string[];
   onPickFor: (suspectId: string) => void;
@@ -213,13 +226,14 @@ function CorkBoard({
 }) {
   const [hovered, setHovered] = useState<string | null>(null);
 
-  const evidence = [...mystery.evidence].sort(
-    (a, b) => (a.unlockStage ?? 0) - (b.unlockStage ?? 0)
-  );
+  const evidence = [...mystery.evidence]
+    .filter((item) => (item.unlockStage ?? 1) <= (stage ?? 4))
+    .sort((a, b) => (a.unlockStage ?? 0) - (b.unlockStage ?? 0));
 
   const ROW = 64;
   const PAD = 16;
-  const height = Math.max(evidence.length, mystery.suspects.length) * ROW + PAD * 2;
+  const height =
+    Math.max(evidence.length, mystery.suspects.length) * ROW + PAD * 2;
 
   const suspectY = (i: number) =>
     PAD + ((i + 0.5) * (height - PAD * 2)) / mystery.suspects.length;
@@ -248,7 +262,7 @@ function CorkBoard({
               d={`M 30% ${suspectY(si)} C 45% ${suspectY(si)}, 55% ${evidenceY(ei)}, 70% ${evidenceY(ei)}`}
               className={cn(
                 "transition-opacity",
-                dim ? "opacity-15" : "opacity-70"
+                dim ? "opacity-15" : "opacity-70",
               )}
               stroke="var(--color-accent)"
               strokeWidth="1.5"
@@ -271,14 +285,16 @@ function CorkBoard({
                 "min-h-11 rounded border bg-ink-700 px-3 py-2 text-left transition-colors",
                 alibisBroken.includes(suspect.id)
                   ? "border-error/50"
-                  : "border-border-mid hover:border-accent"
+                  : "border-border-mid hover:border-accent",
               )}
             >
               <span className="block truncate font-display text-sm text-text-primary">
                 {suspect.name}
               </span>
               <span className="block truncate font-mono text-[11px] uppercase text-text-muted">
-                {alibisBroken.includes(suspect.id) ? "Alibi broken" : suspect.role}
+                {alibisBroken.includes(suspect.id)
+                  ? "Alibi broken"
+                  : suspect.role}
               </span>
             </button>
           ))}
@@ -289,14 +305,13 @@ function CorkBoard({
         <div className="flex flex-col justify-around py-4 pr-4">
           {evidence.map((item) => {
             const linked = pins.filter((p) => p.evidenceId === item.id);
-            const dim =
-              hovered && !linked.some((p) => p.suspectId === hovered);
+            const dim = hovered && !linked.some((p) => p.suspectId === hovered);
             return (
               <div
                 key={item.id}
                 className={cn(
                   "min-h-11 rounded border border-border-mid bg-ink-700 px-3 py-2 transition-opacity",
-                  dim && "opacity-40"
+                  dim && "opacity-40",
                 )}
               >
                 <span className="block truncate text-sm text-text-secondary">
@@ -306,7 +321,7 @@ function CorkBoard({
                   <div className="mt-1 flex flex-wrap gap-1">
                     {linked.map((pin) => {
                       const suspect = mystery.suspects.find(
-                        (s) => s.id === pin.suspectId
+                        (s) => s.id === pin.suspectId,
                       );
                       return (
                         <button
