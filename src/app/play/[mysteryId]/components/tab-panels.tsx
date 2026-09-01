@@ -33,6 +33,7 @@ export function IntroPanel({
 }) {
   return (
     <div className="space-y-3">
+      <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
       <Card title="The Brief">
         <p className={PROSE}>{mystery.introduction}</p>
       </Card>
@@ -47,8 +48,9 @@ export function IntroPanel({
         </p>
         <p className={cn(PROSE, "mt-3")}>{mystery.victim.description}</p>
       </Card>
+      </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-2 sm:flex-row">
         <Button fullWidth onClick={onGoToStory}>
           Read the story
         </Button>
@@ -61,6 +63,8 @@ export function IntroPanel({
 }
 
 export function StoryPanel({ mystery }: { mystery: Mystery }) {
+  // Prose stays in one centred column; two columns of story would be a
+  // worse read than a slightly narrower one.
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
     // Open the first section so the tab is never a wall of closed headings.
     mystery.storySections.length
@@ -69,7 +73,7 @@ export function StoryPanel({ mystery }: { mystery: Mystery }) {
   );
 
   return (
-    <div className="space-y-3">
+    <div className="mx-auto max-w-3xl space-y-3">
       {mystery.storySections.map((section) => (
         <Card key={section.id}>
           <Disclosure
@@ -106,7 +110,7 @@ export function SuspectsPanel({
   const [expanded, setExpanded] = useState<string | null>(null);
 
   return (
-    <div className="space-y-3">
+    <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
       {mystery.suspects.map((suspect) => (
         <Card key={suspect.id}>
           <Disclosure
@@ -237,7 +241,8 @@ export function EvidencePanel({
           </p>
         </Card>
       ) : (
-        visible.map((item) => {
+        <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
+        {visible.map((item) => {
           const isMarked = importantEvidence.includes(item.id);
           const relatedSuspects = item.relatedSuspectIds
             .map((id) => mystery.suspects.find((s) => s.id === id))
@@ -284,7 +289,8 @@ export function EvidencePanel({
               )}
             </Card>
           );
-        })
+        })}
+        </div>
       )}
     </div>
   );
@@ -304,6 +310,7 @@ export function TimelinePanel({ mystery }: { mystery: Mystery }) {
   }
 
   return (
+    <div className="mx-auto max-w-3xl">
     <Card title="Timeline of events">
       <ol className="space-y-0">
         {timeline.map((event, index) => {
@@ -342,5 +349,6 @@ export function TimelinePanel({ mystery }: { mystery: Mystery }) {
         })}
       </ol>
     </Card>
+    </div>
   );
 }

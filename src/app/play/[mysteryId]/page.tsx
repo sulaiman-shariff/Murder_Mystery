@@ -256,6 +256,9 @@ export default function PlayPage() {
           dead space. */}
       <div className="flex h-dvh flex-col">
         <header className="safe-top z-10 shrink-0 border-b border-border-dark bg-ink-900">
+          {/* Same measure as the content, so the timer and tabs sit with the
+              case rather than stranded at the edges of a wide screen. */}
+          <div className="mx-auto w-full max-w-5xl">
           <CaseHeader
             order={mystery.order}
             title={mystery.title}
@@ -269,13 +272,14 @@ export default function PlayPage() {
             active={activeTab}
             onChange={(id) => setActiveTab(id)}
           />
+          </div>
         </header>
 
         <main
           ref={mainRef}
           className="scroll-region min-h-0 flex-1 overflow-y-auto p-3"
         >
-          <div className="mx-auto w-full max-w-2xl">
+          <div className="mx-auto w-full max-w-5xl">
             {activeTab === "introduction" && (
               <IntroPanel
                 mystery={mystery}
@@ -305,7 +309,7 @@ export default function PlayPage() {
             {activeTab === "timeline" && <TimelinePanel mystery={mystery} />}
 
             {activeTab === "solve" && !completed && (
-              <div className="space-y-3">
+              <div className="mx-auto max-w-2xl space-y-3">
                 <Card tone="accent" title="Close the case">
                   <p className="text-[15px] leading-relaxed text-text-secondary">
                     Name the murderer and explain their motive. Both have to be
@@ -368,7 +372,7 @@ export default function PlayPage() {
         </main>
 
         <div className="bar-pad-bottom z-10 shrink-0 border-t border-border-dark bg-ink-900 px-3 pt-2">
-          <div className="mx-auto flex w-full max-w-2xl gap-2">
+          <div className="mx-auto flex w-full max-w-5xl gap-2">
             <Button
               size="sm"
               variant="secondary"

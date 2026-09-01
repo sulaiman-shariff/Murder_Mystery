@@ -164,21 +164,23 @@ export default function HomePage() {
 
   return (
     <div className="screen-pad-y flex min-h-dvh flex-col items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+      {/* One column on a phone; on a laptop the cover becomes a proper hero
+          beside the form instead of a narrow strip in a field of black. */}
+      <div className="w-full max-w-sm lg:grid lg:max-w-4xl lg:grid-cols-2 lg:items-center lg:gap-12">
         {/* The file cover: the most characteristic object in this world. */}
-        <div className="paper-grain relative mb-8 overflow-hidden rounded-card border border-paper-dim/30 bg-paper px-5 pb-6 pt-5 shadow-lift">
+        <div className="paper-grain relative mb-8 overflow-hidden rounded-card border border-paper-dim/30 bg-paper px-5 pb-6 pt-5 shadow-lift lg:mb-0 lg:px-8 lg:pb-10 lg:pt-8">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-ink-700/70">
                 Case File
               </p>
-              <h1 className="mt-1 font-display text-3xl leading-[1.05] tracking-tight text-ink-900">
+              <h1 className="mt-1 font-display text-3xl leading-[1.05] tracking-tight text-ink-900 lg:text-5xl">
                 MURDER
                 <br />
                 MYSTERY
               </h1>
             </div>
-            <MagnifierIcon className="mt-1 h-7 w-7 shrink-0 text-ink-900/45" />
+            <MagnifierIcon className="mt-1 h-7 w-7 shrink-0 text-ink-900/45 lg:h-10 lg:w-10" />
           </div>
 
           <div className="mt-5 flex items-end justify-between gap-3 border-t border-ink-900/15 pt-3">
@@ -193,6 +195,7 @@ export default function HomePage() {
           </div>
         </div>
 
+        <div>
         {/* Held open only until localStorage has been read, so a returning
             team's card does not shove the form down; collapsed afterwards
             rather than leaving a permanent gap for everyone else. */}
@@ -345,6 +348,7 @@ export default function HomePage() {
             </p>
           </Card>
         )}
+        </div>
       </div>
     </div>
   );

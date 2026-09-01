@@ -26,7 +26,7 @@ function LostContent() {
 
   return (
     <div className="screen-pad-y flex min-h-dvh flex-col items-center overflow-x-clip px-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md lg:max-w-2xl">
         <div className="mb-10 flex flex-col items-center text-center">
           <Stamp tone="accent" slam className="text-sm sm:text-lg">
             Case Cold
@@ -43,7 +43,7 @@ function LostContent() {
           <CaseSolution mysteryId={mystery.id} />
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="mx-auto flex w-full max-w-md flex-col gap-2">
           <Button
             fullWidth
             size="lg"

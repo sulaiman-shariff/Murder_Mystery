@@ -33,7 +33,7 @@ function WinContent() {
 
   return (
     <div className="screen-pad-y flex min-h-dvh flex-col items-center overflow-x-clip px-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md lg:max-w-4xl">
         <div className="mb-10 flex flex-col items-center text-center">
           <Stamp tone="gold" slam className="text-sm sm:text-lg">
             Case Closed
@@ -43,7 +43,9 @@ function WinContent() {
           </p>
         </div>
 
-        <div className="mb-4 grid grid-cols-2 gap-3">
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+        <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
           <Card className="text-center">
             <p className="font-display text-[11px] uppercase tracking-[0.15em] text-text-muted">
               Score
@@ -63,7 +65,7 @@ function WinContent() {
         </div>
 
         {breakdown && (
-          <Card title="How that adds up" className="mb-4">
+          <Card title="How that adds up">
             <dl className="space-y-1.5 text-sm">
               <Row label="Base score" value={`+${breakdown.base}`} />
               {breakdown.timePenalty > 0 && (
@@ -109,11 +111,14 @@ function WinContent() {
           </Card>
         )}
 
-        <div className="mb-6">
-          <CaseSolution mysteryId={mystery.id} />
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div>
+          <CaseSolution mysteryId={mystery.id} />
+        </div>
+        </div>
+
+        <div className="mx-auto mt-6 flex max-w-md flex-col gap-2">
           {nextMysteryId ? (
             <Button
               fullWidth
