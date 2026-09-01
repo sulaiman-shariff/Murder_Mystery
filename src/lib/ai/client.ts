@@ -1,7 +1,10 @@
 import type { MurdererValidationResult, MotiveValidationResult, SuspectRecord } from "@/types";
 
-const AI_API_KEY = process.env.AI_API_KEY;
-const AI_MODEL = process.env.AI_MODEL || "gemini-2.5-flash-lite";
+const AI_API_KEY = process.env.AI_API_KEY?.trim();
+// Trimmed because a stray space in the configured value makes Gemini
+// reject every request with "unexpected model name format", which turns
+// into a silent "validation unavailable" for players mid-game.
+const AI_MODEL = process.env.AI_MODEL?.replace(/\s+/g, "") || "gemini-2.5-flash-lite";
 const CONFIDENCE_THRESHOLD = 0.7;
 
 interface GeminiResponse {
@@ -81,7 +84,10 @@ const MURDERER_SCHEMA = {
   properties: {
     correct: { type: "boolean" },
     confidence: { type: "number" },
-    matchedSuspectId: { type: ["string", "null"] },
+    // Gemini's response schema is an OpenAPI subset: it rejects union
+    // types like ["string","null"] outright, which made every murderer
+    // validation fail as "unavailable". Nullability goes here instead.
+    matchedSuspectId: { type: "string", nullable: true },
     feedback: { type: "string" },
     ambiguous: { type: "boolean" },
   },
@@ -99,6 +105,38 @@ const MOTIVE_SCHEMA = {
   },
   required: ["correct", "confidence", "matchedConcepts", "missingConcepts", "feedback"],
 } as const;
+
+/**
+ * Last line of defence on the spoiler rule.
+ *
+ * The model has been observed replying to a wrong guess with wording that
+ * names the killer outright ("...is a valid alias for X. However, X is not
+ * the murderer."). Prompt wording alone cannot guarantee this never happens,
+ * so any non-correct verdict whose feedback mentions the murderer or one of
+ * their aliases is replaced with a neutral message.
+ */
+function safeFeedback(
+  feedback: string,
+  status: string,
+  correctMurderer: string,
+  aliases: string[]
+): string {
+  const text = (feedback || "").slice(0, 300);
+  if (status === "correct") return text;
+
+  const haystack = text.toLowerCase();
+  const forbidden = [correctMurderer, ...aliases, ...correctMurderer.split(/\s+/)]
+    .map((term) => term.trim().toLowerCase())
+    .filter((term) => term.length > 2);
+
+  if (forbidden.some((term) => haystack.includes(term))) {
+    return status === "ambiguous"
+      ? "That could point at more than one person. Name them more precisely."
+      : "That is not your killer. Go back over the evidence and the alibis.";
+  }
+
+  return text;
+}
 
 export async function validateMurderer(params: {
   guess: string;
@@ -121,23 +159,31 @@ ${suspectList}
 
 Player's guess: "${params.guess}"
 
-Determine if the player's guess refers to the correct murderer.
+Work out which suspect the guess refers to, then decide.
 
-Rules:
-- Accept full names, partial names, first/last names, titles, nicknames, minor misspellings
-- Accept descriptions only when they clearly identify exactly ONE specific suspect
-- If ambiguous (could refer to multiple suspects), set ambiguous=true and correct=false
-- Never reveal the correct answer when incorrect
-- Never mention which suspect was "close"
-- Confidence below 0.7 = ambiguous=true
-- matchedSuspectId must be a real suspect ID from the list above, or null
-- Keep feedback under 200 characters
-- Incorrect feedback must not reveal the solution`;
+Step 1 - resolve the guess to a suspect:
+- Match on full name, first name alone, surname alone, title, nickname, role, or any listed alias.
+- Ignore case, punctuation and small spelling slips.
+- If it resolves to exactly one suspect, that is the match.
+- If it could equally be two or more suspects, there is no match: set ambiguous=true, correct=false.
+
+Step 2 - decide:
+- correct=true if and only if the matched suspect IS the correct murderer named above.
+- correct=false otherwise.
+- The aliases listed against the correct murderer were authored to be accepted: if the guess resolves to one of them, correct MUST be true. Do not second-guess this.
+
+Step 3 - write feedback (under 200 characters):
+- If correct: confirm it plainly.
+- If incorrect: say only that this is not the killer and suggest re-reading the evidence. NEVER name, describe, hint at or rule anyone in or out. Do not mention the correct murderer's name or aliases under any circumstance. Do not say the guess was "close".
+
+Other:
+- confidence is how sure you are of the resolution in step 1, 0 to 1.
+- matchedSuspectId must be a real suspect ID from the list above, or null.`;
 
   try {
     const raw = await callGemini(prompt, {
       maxTokens: 300,
-      temperature: 0.1,
+      temperature: 0,
       responseSchema: MURDERER_SCHEMA as Record<string, unknown>,
     });
     const parsed = JSON.parse(cleanJson(raw));
@@ -182,7 +228,12 @@ Rules:
       correct: parsed.correct,
       confidence,
       matchedSuspectId: isValidSuspectId ? parsed.matchedSuspectId : null,
-      feedback: parsed.feedback.slice(0, 300),
+      feedback: safeFeedback(
+        parsed.feedback,
+        status,
+        params.correctMurderer,
+        params.suspects.find((s) => s.name === params.correctMurderer)?.aliases ?? []
+      ),
       ambiguous: isAmbiguous,
       status,
     };

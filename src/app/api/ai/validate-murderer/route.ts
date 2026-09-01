@@ -38,14 +38,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Every entry in murdererAliases is an alias for the murderer, so they
+    // all belong to that suspect. The previous substring match quietly threw
+    // away the descriptive ones the author wrote to be accepted ("the
+    // artist", "the painter", "Mr. Reed"), and players using them were told
+    // they were wrong and charged an attempt.
+    const murdererName = solution.murderer.toLowerCase();
     const suspects: SuspectRecord[] = mystery.suspects.map((s) => ({
       id: s.id,
       name: s.name,
       role: s.role,
-      aliases: solution.murdererAliases.filter(
-        (a) => a.toLowerCase().includes(s.name.toLowerCase()) ||
-          s.name.toLowerCase().includes(a.toLowerCase())
-      ),
+      aliases:
+        s.name.toLowerCase() === murdererName ? solution.murdererAliases : [],
     }));
 
     const result = await validateMurderer({
