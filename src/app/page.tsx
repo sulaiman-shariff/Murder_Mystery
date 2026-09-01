@@ -101,8 +101,22 @@ export default function HomePage() {
         body: JSON.stringify({ name: teamName, pin, eventCode }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Request failed");
+      // A crashed route can answer with an empty body; parsing that blindly
+      // surfaced "Unexpected end of JSON input" to the player instead of
+      // whatever actually went wrong.
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(
+          data?.error ||
+            (res.status >= 500
+              ? "The server had a problem. Please try again."
+              : "Could not sign you in. Check your details and try again.")
+        );
+      }
+      if (!data?.team) {
+        throw new Error("The server sent an unexpected response. Please try again.");
+      }
 
       saveTeam({
         id: data.team.id,

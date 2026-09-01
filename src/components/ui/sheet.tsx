@@ -37,6 +37,17 @@ export function Sheet({
 }: SheetProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Held in a ref so the effect below can stay mount-only. Callers pass an
+  // inline arrow, and the play screen re-renders every second as the case
+  // timer ticks, so onClose has a new identity on every one of those renders.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Mount-only, deliberately. When this effect depended on onClose it tore
+  // down and re-ran once a second, and each re-run called panelRef.focus() —
+  // pulling focus out of whatever the player was typing in and selecting the
+  // panel instead. Typing a question to the detective, or an answer in the
+  // solve panel, was interrupted every second.
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
@@ -47,7 +58,7 @@ export function Sheet({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
 
@@ -74,7 +85,7 @@ export function Sheet({
       document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus?.();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div
