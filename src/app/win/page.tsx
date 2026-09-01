@@ -32,10 +32,10 @@ function WinContent() {
   }
 
   return (
-    <div className="screen-pad-y flex min-h-dvh flex-col items-center px-4">
+    <div className="screen-pad-y flex min-h-dvh flex-col items-center overflow-x-clip px-4">
       <div className="w-full max-w-md">
         <div className="mb-10 flex flex-col items-center text-center">
-          <Stamp tone="gold" slam className="text-lg">
+          <Stamp tone="gold" slam className="text-sm sm:text-lg">
             Case Closed
           </Stamp>
           <p className="mt-6 font-display text-sm uppercase tracking-[0.15em] text-text-muted">
