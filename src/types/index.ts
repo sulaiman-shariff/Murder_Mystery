@@ -13,6 +13,31 @@ export interface StorySection {
   content: string;
 }
 
+/** A named location on the case map. Lets alibis and sightings be compared. */
+export interface Place {
+  id: string;
+  name: string;
+}
+
+/**
+ * What a suspect *claims*. Public by definition — an alibi is something they
+ * say out loud. Whether it is false is authored server-side, never here.
+ */
+export interface AlibiClaim {
+  id: string;
+  /** Verbatim, in the suspect's own voice. This is what the player reads. */
+  claim: string;
+  placeId: string;
+  /** Case-clock minutes (see Mystery.timeline). */
+  from: number;
+  to: number;
+  /**
+   * Who says they can vouch for it. An empty array means uncorroborated,
+   * and the UI says so — that is information the player is entitled to.
+   */
+  corroboratedBy: string[];
+}
+
 export interface Suspect {
   id: string;
   name: string;
@@ -20,7 +45,7 @@ export interface Suspect {
   image?: string;
   relationshipToVictim: string;
   statement: string;
-  alibi?: string;
+  alibi?: AlibiClaim;
   suspiciousDetails: string[];
 }
 
@@ -29,8 +54,16 @@ export interface Evidence {
   title: string;
   description: string;
   category: EvidenceCategory;
-  relatedSuspectIds: string[];
+  /**
+   * Who this item names, is about, or was produced by. Purely navigational —
+   * it does NOT mean "this implicates them", and the count must never be
+   * displayed: tag frequency alone used to fingerprint the murderer.
+   */
+  mentionsSuspectIds: string[];
+  /** 1-4. Drives reading order today; reserved for progressive unlock. */
   unlockStage?: number;
+  /** Case-clock minutes, where the item places something in time. */
+  observedAt?: number;
 }
 
 export type EvidenceCategory =
@@ -43,8 +76,21 @@ export type EvidenceCategory =
 export type EvidenceFilter = EvidenceCategory | "all";
 
 export interface TimelineEvent {
+  id: string;
+  /**
+   * Minutes on this mystery's own case clock. Sortable and comparable;
+   * never rendered. The prose `time` below is unsortable by design
+   * ("Nightfall + 15 min"), so ordering and window maths use this.
+   */
+  t: number;
+  /** What the player reads: "9:15 PM", "Twilight". */
   time: string;
   event: string;
+  placeId?: string;
+  /**
+   * Set ONLY when the suspect's own account places them here — a public,
+   * corroborated fact. Never used to mean "this is who it was".
+   */
   relatedSuspectId?: string;
 }
 
@@ -78,6 +124,7 @@ export interface Mystery {
   suspects: Suspect[];
   evidence: Evidence[];
   timeline?: TimelineEvent[];
+  places?: Place[];
   /**
    * How many hint levels this mystery has. The hints themselves are spoilers
    * and live server-side in src/data/solutions.ts; the client only needs the

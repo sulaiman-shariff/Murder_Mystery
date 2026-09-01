@@ -144,8 +144,27 @@ export function SuspectsPanel({
               {suspect.alibi && (
                 <Field label="Alibi">
                   <p className={cn(PROSE, "border-l-2 border-gold/40 pl-3")}>
-                    {suspect.alibi}
+                    &ldquo;{suspect.alibi.claim}&rdquo;
                   </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5 pl-3">
+                    <Badge>
+                      {placeName(mystery, suspect.alibi.placeId)}
+                    </Badge>
+                    <Badge>
+                      {windowLabel(mystery, suspect.alibi.from, suspect.alibi.to)}
+                    </Badge>
+                    {/* Whether anyone can vouch is information the player is
+                        entitled to — it is what makes an alibi checkable. */}
+                    <Badge
+                      tone={
+                        suspect.alibi.corroboratedBy.length ? "default" : "error"
+                      }
+                    >
+                      {suspect.alibi.corroboratedBy.length
+                        ? "Corroborated"
+                        : "Uncorroborated"}
+                    </Badge>
+                  </div>
                 </Field>
               )}
 
@@ -244,9 +263,6 @@ export function EvidencePanel({
         <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
         {visible.map((item) => {
           const isMarked = importantEvidence.includes(item.id);
-          const relatedSuspects = item.relatedSuspectIds
-            .map((id) => mystery.suspects.find((s) => s.id === id))
-            .filter((s): s is NonNullable<typeof s> => Boolean(s));
 
           return (
             <Card key={item.id} tone={isMarked ? "accent" : "default"}>
@@ -279,14 +295,6 @@ export function EvidencePanel({
               </div>
 
               <p className={cn(PROSE, "mt-2")}>{item.description}</p>
-
-              {relatedSuspects.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border-dark pt-3">
-                  {relatedSuspects.map((suspect) => (
-                    <Badge key={suspect.id}>{suspect.name}</Badge>
-                  ))}
-                </div>
-              )}
             </Card>
           );
         })}
@@ -296,8 +304,27 @@ export function EvidencePanel({
   );
 }
 
+function placeName(mystery: Mystery, placeId: string): string {
+  return mystery.places?.find((p) => p.id === placeId)?.name ?? "Unknown";
+}
+
+/** Renders a case-clock window using the timeline's own display strings. */
+function windowLabel(mystery: Mystery, from: number, to: number): string {
+  const label = (t: number) => {
+    const events = mystery.timeline ?? [];
+    const exact = events.find((e) => e.t === t);
+    if (exact) return exact.time;
+    // Fall back to the nearest earlier marker so the window still reads.
+    const earlier = [...events].filter((e) => e.t <= t).sort((a, b) => b.t - a.t)[0];
+    return earlier ? earlier.time : `+${t}m`;
+  };
+  return `${label(from)} – ${label(to)}`;
+}
+
 export function TimelinePanel({ mystery }: { mystery: Mystery }) {
-  const timeline = mystery.timeline ?? [];
+  // Sort by the case clock, never by array order — the display `time` strings
+  // are free-form and unsortable by design.
+  const timeline = [...(mystery.timeline ?? [])].sort((a, b) => a.t - b.t);
 
   if (timeline.length === 0) {
     return (
@@ -320,7 +347,7 @@ export function TimelinePanel({ mystery }: { mystery: Mystery }) {
           const isLast = index === timeline.length - 1;
 
           return (
-            <li key={`${event.time}-${index}`} className="flex gap-3">
+            <li key={event.id} className="flex gap-3">
               <div className="flex flex-col items-center pt-1.5">
                 <span
                   className={cn(

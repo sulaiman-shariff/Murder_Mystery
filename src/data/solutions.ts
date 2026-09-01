@@ -14,6 +14,10 @@ import type { HintLevel, MysterySolution } from "@/types";
  *   - /api/ai/* validates guesses and generates hints server-side
  *   - /api/mysteries/[mysteryId]/reveal returns the solution once the
  *     team's session is over (completed or failed)
+ *
+ * Each case is designed so the killer is three joins deep. Motive is spread
+ * across every suspect; something objective — a key register, a cue sheet, a
+ * door that only opens for one department — is what narrows it.
  */
 
 interface MysterySecrets {
@@ -22,239 +26,243 @@ interface MysterySecrets {
 }
 
 const SOLUTIONS: Record<string, MysterySecrets> = {
-  "gilded-rose-mansion": {
+  "room-314": {
     solution: {
-      murderer: "Jonathan Reed",
+      murderer: "Dinah Coyle",
       murdererAliases: [
-        "Jonathan",
-        "Reed",
-        "Mr. Reed",
-        "the artist",
-        "the painter",
-        "Jonathan Reed the artist",
+        "Dinah",
+        "Coyle",
+        "Miss Coyle",
+        "the night porter",
+        "the porter",
+        "the night staff",
+        "Dinah Coyle",
       ],
       murdererDescription:
-        "The artist whose work was unceremoniously discarded by Charles Rayburn",
+        "The night porter, who carried the second master card and whose mother's maiden name was Ellery",
       motiveSummary:
-        "Jonathan Reed killed Charles Rayburn in a fit of vengeful rage after Charles pulled funding from his magnum opus — a commissioned painting that Jonathan had devoted years to creating. The betrayal, combined with Charles's dismissal of his artistic legacy, drove Jonathan to confront Charles in his study. When Charles refused to reconsider, Jonathan grabbed the letter opener in a moment of fury.",
+        "Victor Sallow was the lender who took Dinah Coyle's family home eleven months ago. Her mother's maiden name is Ellery — the name struck through in Sallow's ledger as settled, property surrendered, and the name on the unredeemed pawn ticket for her mother's locket that he still carried folded in his wallet. She took the night job at the Ashcombe because he wintered there every year. On the night, she left the desk unattended, let herself into 314 with her master card, and struck him once from behind with his own paperweight.",
       motiveRequiredConcepts: [
         "revenge",
-        "artistic betrayal",
-        "destroyed commission",
-        "professional humiliation",
+        "he took her family's home",
+        "the seized locket",
+        "she sought him out",
       ],
       acceptableMotiveInterpretations: [
-        "Revenge for a past deception hidden within the mansion's walls",
-        "A vendetta fueled by professional jealousy and wounded pride",
-        "Retaliation for having his life's work destroyed",
+        "Revenge for ruining her family and taking their house",
+        "She blamed him for her family losing everything and had been waiting for him",
+        "Personal retribution against the lender who foreclosed on her mother",
       ],
       commonIncorrectMotiveInterpretations: [
-        "A business dispute or financial disagreement",
-        "Simple jealousy over talent or status",
-        "A crime of opportunity during a robbery",
-        "Romantic rivalry or love triangle",
+        "A debt of her own that she could not repay",
+        "Robbery — the wallet was left untouched with money in it",
+        "A dispute about her job or her treatment at the hotel",
+        "She killed him on somebody else's behalf",
+        "An argument that got out of hand between strangers",
       ],
       explanation:
-        "Jonathan Reed was Charles Rayburn's most trusted artist, commissioned to create a masterpiece that would define both their legacies. When Charles unexpectedly pulled funding, claiming the project was too expensive, Jonathan felt personally betrayed. The burned canvas in the fireplace was Jonathan's way of destroying what he couldn't have. He came to the study that night to plead his case one last time, but Charles's dismissal pushed him over the edge. The letter opener — the murder weapon — came from Charles's own desk, suggesting a crime of passion rather than premeditation.",
-      decisiveEvidenceIds: [
-        "scattered-papers",
-        "burned-painting",
-        "servant-testimony",
-      ],
+        "Everyone under that roof had a reason to want Sallow gone — Landon owed him, Vance inherited the business, Ash was watching her hotel fail. What none of them had was a way through the door. The lock recorded a staff master card at 9:47, and there are only two in the building. The key register accounts for the manager's: signed into the safe at 9:10 and never signed out again. That leaves the porter's, which has no return entry at all. The telephone log confirms the desk she claims never to have left stood unattended from 9:30 to 10:05, through the bell she did not answer. The motive was in Sallow's own wallet: a pawn ticket for a gold locket surrendered by a family named Ellery, the same name struck out of his ledger eleven months before — and Ellery is her mother's name. She had been standing behind that desk all winter waiting for him to come down.",
+      decisiveEvidenceIds: ["door-log", "key-register", "pawn-ticket"],
     },
     hintPlan: [
       {
         level: 1,
-        relevantEvidenceIds: ["whiskey-glass", "letter-opener"],
-        objective: "Draw attention to the crime scene details",
+        relevantEvidenceIds: ["the-paperweight", "door-log"],
+        objective: "Point them at the door rather than at the motives",
         maximumRevelation:
-          "The murder weapon came from the victim's own desk, suggesting this was not premeditated.",
+          "Nobody brought a weapon. Start with how the door was opened, not with who wanted him dead.",
       },
       {
         level: 2,
-        relevantEvidenceIds: ["scattered-papers", "family-portrait"],
-        objective: "Suggest examining documents and personal effects",
+        relevantEvidenceIds: ["door-log", "bar-tab"],
+        objective: "Establish that access, not motive, is the discriminator",
         maximumRevelation:
-          "There was a recent professional conflict involving an art commission.",
+          "A guest card opens one room. The card used at 9:47 was not a guest card, which rules out anyone who only holds one.",
       },
       {
         level: 3,
-        relevantEvidenceIds: ["burned-painting", "servant-testimony"],
-        objective: "Connect the destroyed artwork to the suspect",
+        relevantEvidenceIds: ["key-register"],
+        objective: "Narrow the two master cards to one",
         maximumRevelation:
-          "Someone with artistic motives was seen near the study around the time of the murder.",
+          "There are two master cards in the building. One of them is accounted for in writing for the whole of the relevant period.",
       },
       {
         level: 4,
-        relevantEvidenceIds: ["financial-records"],
-        objective: "Narrow to the suspect whose motive is personal betrayal",
+        relevantEvidenceIds: ["house-phone-log"],
+        objective: "Break the remaining alibi",
         maximumRevelation:
-          "Look for someone whose professional pride and life's work were destroyed by the victim.",
+          "Someone claims to have been at their post all night. There is a thirty-five minute hole in that claim, and a bell that went unanswered inside it.",
       },
       {
         level: 5,
-        relevantEvidenceIds: ["servant-testimony", "burned-painting", "scattered-papers"],
-        objective: "Guide toward the final conclusion",
+        relevantEvidenceIds: ["pawn-ticket", "debt-ledger"],
+        objective: "Deliver the motive join without naming anyone",
         maximumRevelation:
-          "The killer is not a family member but someone whose art and soul were discarded by the victim.",
+          "One name appears twice in the victim's own papers — struck out of his ledger and written on a pawn ticket he never surrendered. It is a family name, and it belongs to somebody working in this hotel.",
       },
     ],
   },
-  "hollowbrook-asylum": {
+
+  "vaughn-street": {
     solution: {
-      murderer: "Daniel Mercer",
+      murderer: "Tobias Frayne",
       murdererAliases: [
-        "Daniel",
-        "Mercer",
-        "Mr. Mercer",
-        "the patient",
-        "the journalist",
-        "the reporter",
+        "Tobias",
+        "Frayne",
+        "Mr. Frayne",
+        "the understudy",
+        "the cover",
+        "Tobias Frayne",
       ],
       murdererDescription:
-        "A former journalist whose psychotic break was caused by Thorne's experimental treatments",
+        "The understudy — the only person working the performance with no station and no record",
       motiveSummary:
-        "Daniel Mercer was a journalist who discovered Dr. Thorne's unethical experiments on patients. Before he could expose Thorne to the press, Thorne had him committed under a false diagnosis and subjected him to extreme treatments that shattered his mind. When Mercer's memory began returning, he realized what Thorne had done to him and sought vengeance.",
+        "Tobias Frayne had understudied the same part for six years and gone on twice. At the Act I interval the producer handed Roland Pike next season's company list, and Pike told Frayne his name was not on it — six years of sitting made up in a cold room, ended in a sentence. During Act II, while every other person working the show was tied to a station that writes down where they are, Frayne walked into the prompt corner and hit Pike once with a brace from the counterweight rail.",
       motiveRequiredConcepts: [
-        "vengeance",
-        "unethical experiments",
-        "psychological destruction",
-        "silencing a whistleblower",
+        "his career was over",
+        "dropped from next season",
+        "six years of waiting for nothing",
+        "rage at the man who told him",
       ],
       acceptableMotiveInterpretations: [
-        "Vengeance for a betrayal that destroyed his mind",
-        "Personal vendetta against the man who ruined his life",
-        "Desperate retaliation for medical abuse and torture",
+        "He had just been told he was being let go after six years of understudying",
+        "Fury at losing the only part he had been waiting for",
+        "His one chance at the role was taken away permanently",
       ],
       commonIncorrectMotiveInterpretations: [
-        "The doctor was killed by a patient in a random violent episode",
-        "Insurance fraud or financial motive",
-        "A staff member's workplace grievance",
-        "Revenge for a failed medical treatment",
+        "A row over a byline or billing",
+        "He was being blackmailed by the victim",
+        "Jealousy of the leading actress specifically",
+        "He was protecting the theatre's finances",
+        "A long-running personal feud",
       ],
       explanation:
-        "Daniel Mercer was an investigative journalist who came to Hollowbrook posing as a patient to expose Dr. Thorne's unethical practices. When Thorne discovered the deception, he used his authority to have Mercer forcibly committed under a false identity. The experimental treatments — electroconvulsive therapy, sensory deprivation — were intended to break Mercer's mind and destroy his credibility. The treatments worked, causing a genuine psychotic break that erased Mercer's memory. But fragments returned — glimpses of who he was and what Thorne had done. The torn journal page ('He promised I would forget. But I remember everything') was Mercer's cry of awakening. On the night of the murder, Mercer confronted Thorne in his office. When Thorne reached for the sedative-laced coffee meant to silence him permanently, Mercer grabbed the letter opener and struck. The half-written letter was Thorne's confession — he knew he had gone too far.",
+        "Everyone backstage had a reason. Wren had been called unreliable in writing, Devlin had been reported to the board, Bell was about to lose his theatre over the returns. What separates them is that a theatre in performance writes down where its people are. The cue sheet holds two actors on stage through the whole of the opening scene of Act II. The lighting board logs four cues taken by hand at a desk four floors and a locked door from the wings. The box-office till roll has the returns window worked until 8:58. Every one of those is a machine or a document saying: not this one. The brace carries a smear of Number Five greasepaint, so the killer was made up — and of the two people in that building wearing makeup, one of them was in front of eight hundred witnesses. The understudy is made up every night and given nothing to do. He is the only person working that show whose whereabouts nothing records, and the stage door book proves he never left.",
       decisiveEvidenceIds: [
-        "torn-journal-page",
-        "letter-opener",
-        "false-name-records",
-        "patient-testimony",
+        "iron-brace",
+        "cue-sheet",
+        "lighting-log",
+        "next-season-list",
       ],
     },
     hintPlan: [
       {
         level: 1,
-        relevantEvidenceIds: ["half-written-letter", "letter-opener", "hidden-key"],
-        objective: "Draw attention to Thorne's final moments",
+        relevantEvidenceIds: ["iron-brace"],
+        objective: "Draw attention to the trace on the weapon",
         maximumRevelation:
-          "Dr. Thorne was writing something important when he died — something he regretted.",
+          "The weapon was picked up in the wings, so the killer was already backstage. Look at what was left on the grip.",
       },
       {
         level: 2,
-        relevantEvidenceIds: ["patient-testimony", "letter-opener", "bloodstained-glove"],
-        objective: "Encourage investigating the hospital records",
+        relevantEvidenceIds: ["cue-sheet", "lighting-log"],
+        objective: "Establish that stations produce alibis",
         maximumRevelation:
-          "Someone was admitted under a false name — a patient who shouldn't exist in the system.",
+          "Almost everyone working a performance is tied to a station that keeps its own record. Read those records as eliminations.",
       },
       {
         level: 3,
-        relevantEvidenceIds: ["torn-journal-page", "bloodstained-glove"],
-        objective: "Connect the patient's journal to a specific suspect",
+        relevantEvidenceIds: ["box-office-roll", "stage-door-book"],
+        objective: "Close the remaining exits",
         maximumRevelation:
-          "One patient remembers everything they were promised to forget. Their journal holds the key.",
+          "The third station accounts for another of them, and nobody signed out of the building before the curtain came down.",
       },
       {
         level: 4,
-        relevantEvidenceIds: ["hidden-key", "false-name-records"],
-        objective: "Reveal the connection between the journalist and the asylum",
+        relevantEvidenceIds: ["iron-brace", "cue-sheet"],
+        objective: "Force the greasepaint join",
         maximumRevelation:
-          "The killer was not always a patient — they came to Hollowbrook for a purpose, and Thorne made sure they never left.",
+          "Two people in this company were in full makeup during Act II. One of them was standing in front of eight hundred people.",
       },
       {
         level: 5,
-        relevantEvidenceIds: ["torn-journal-page", "bloodstained-glove", "patient-testimony"],
-        objective: "Guide toward the final conclusion",
+        relevantEvidenceIds: ["next-season-list"],
+        objective: "Deliver the motive without naming anyone",
         maximumRevelation:
-          "Look for the person whose very presence at Hollowbrook was a secret — someone Thorne tried to erase entirely.",
+          "Ask who in this building has a job that requires them to be present and gives them nothing to do — and then read whose name is missing from next season.",
       },
     ],
   },
-  "veil-of-ebonmere": {
+
+  "northolt-press": {
     solution: {
-      murderer: "Lady Seraphine Voss",
+      murderer: "Vikram Rao",
       murdererAliases: [
-        "Seraphine",
-        "Lady Voss",
-        "Lady Seraphine",
-        "the seer",
-        "Seraphine Voss",
+        "Vikram",
+        "Rao",
+        "Mr. Rao",
+        "the subeditor",
+        "the sub",
+        "the chief sub",
+        "the stone hand",
+        "Vikram Rao",
       ],
       murdererDescription:
-        "The court seer and Aldren's most trusted confidante",
+        "The chief subeditor — thirty-one years on the paper, and the only person who could remake a plated page",
       motiveSummary:
-        "Lady Seraphine Voss killed Aldren Thalor because his visions were becoming too powerful. As the veil between worlds thinned, Aldren began seeing truths that threatened the very fabric of Ebonmere. Seraphine, bound by an ancient oath as the realm's seer, believed that Aldren's revelations would usher in a catastrophe. She killed him to protect the realm from the darkness his visions would unleash — fulfilling the prophecy that 'the keeper of secrets must fall.'",
+        "Vikram Rao was the leak. For six years he had passed page proofs of the paper's investigations to the proprietor before they ran, and Iris Bellamy's story was going to name him for it. Her last note records that she had told the leak she knew, and would print his name in the second edition unless he resigned that night. Thirty-one years and a pension a year from vesting were about to end in disgrace. He killed her with the spike on her desk, then did the one thing nobody else in the building could do — walked onto the stone and remade page one by hand.",
       motiveRequiredConcepts: [
-        "prophecy",
-        "protection",
-        "silencing forbidden knowledge",
-        "preserving the veil",
+        "he was the leak",
+        "she was about to name him",
+        "thirty-one years and his pension",
+        "silencing the story",
       ],
       acceptableMotiveInterpretations: [
-        "Protection of a dark secret hidden beneath the city",
-        "A prophecy fulfilled through bloodshed",
-        "Elimination of a dangerous threat to the realm's balance",
-        "An oath to an unseen force demanding sacrifice",
+        "He had been secretly passing proofs to the proprietor and was about to be exposed",
+        "To stop her printing his name and ending his career",
+        "Self-preservation — the story would have destroyed him after thirty-one years",
       ],
       commonIncorrectMotiveInterpretations: [
-        "A political power grab for the throne",
-        "Jealousy over Aldren's relationship with another court member",
-        "A ritual sacrifice to gain power for herself",
-        "Revenge for a personal slight or betrayal",
+        "To protect the proprietor or his family",
+        "Resentment at being passed over for the editorship",
+        "A dispute over the byline on the story",
+        "He was paid to stop the story by someone outside the paper",
+        "He was ordered to do it by the board",
       ],
       explanation:
-        "Lady Seraphine Voss was Aldren Thalor's most trusted ally — his confidante, his seer, and the keeper of the prophecy. As the veil between worlds thinned, Aldren's visions grew increasingly powerful. He began seeing truths that were never meant to be revealed: the true nature of the veil, the entities beyond it, and the fragile balance that kept Ebonmere safe. Seraphine knew that if Aldren continued to share these visions, he would draw the attention of the darkness beyond the veil. Bound by her ancient oath as seer of Ebonmere, she made the impossible choice. She deactivated the wards — a sequence known to only a trusted few — entered the Grand Hall, and confronted him. In his moment of trust, she used his own obsidian dagger, a ritual tool, to end his life. The carved message — 'The veil is thinning. He saw too much' — was both a warning and a confession. The torn fragment of her robe at the scene was the one detail she missed in her escape. Her grief is genuine — she loved Aldren as a friend — but her duty to the realm outweighed all else.",
+        "The story died at 12:52 AM, and that is the fact that matters. After midnight a page cannot be killed by deleting a file — it has to be remade by hand on the stone, and the stone is behind a door that opens for production staff and nobody else. That single constraint removes three of the four: the deputy and the reporter carry editorial cards, the proprietor's daughter a visitor card, and the door's own log shows one card on that floor for the whole period and no others. The building log puts the deputy out of the front entrance at 12:40 and the visitor a minute later, and the print works held a reporter on the phone from 12:45 to 1:02. The proofs in Bellamy's locked drawer show that the leak was somebody who handled pages before they ran, which is the subs' desk. Her last shorthand note names the day, the decision and the ultimatum: she had told the leak she knew, and would print it unless he resigned that night. He had thirty-one years behind him and a pension a year ahead of him.",
       decisiveEvidenceIds: [
-        "prophecy-scroll",
-        "ward-logs",
-        "vision-journal",
-        "starry-robes",
+        "page-plan",
+        "production-door",
+        "advance-proofs",
+        "final-note",
       ],
     },
     hintPlan: [
       {
         level: 1,
-        relevantEvidenceIds: ["obsidian-dagger", "carved-message"],
-        objective: "Draw attention to the message and the weapon",
+        relevantEvidenceIds: ["the-spike", "page-plan"],
+        objective: "Anchor them to the act rather than the motive",
         maximumRevelation:
-          "The message was written by the killer, not the victim. It's a confession of motive.",
+          "Two things happened that night: a woman was killed and a page was changed. The second one is easier to trace.",
       },
       {
         level: 2,
-        relevantEvidenceIds: ["ward-logs", "alchemical-residue"],
-        objective: "Encourage investigating the magical security",
+        relevantEvidenceIds: ["swipe-log", "printers-call"],
+        objective: "Use the records to remove people",
         maximumRevelation:
-          "Someone with knowledge of the citadel's deepest secrets deactivated the wards. Only a very small circle knew how.",
+          "Two people left the building before one o'clock and a third was on a logged telephone line for seventeen minutes. Read those as eliminations.",
       },
       {
         level: 3,
-        relevantEvidenceIds: ["prophecy-scroll", "vision-journal"],
-        objective: "Reveal the prophecy and Aldren's fears",
+        relevantEvidenceIds: ["page-plan", "production-door"],
+        objective: "Surface the capability constraint",
         maximumRevelation:
-          "Aldren knew he was in danger. His final journal entry suggests he told someone everything — and that may have been his undoing.",
+          "Changing a plated page after midnight is physical work in one particular room, and that room does not open for everybody.",
       },
       {
         level: 4,
-        relevantEvidenceIds: ["starry-robes", "ward-logs"],
-        objective: "Connect the physical evidence to a suspect",
+        relevantEvidenceIds: ["advance-proofs"],
+        objective: "Identify the department the leak sat in",
         maximumRevelation:
-          "Look for someone who was both Aldren's closest confidante and the one person who could override the wards without force.",
+          "Whoever was passing proofs out had to be handling them before they ran. That is a job, and only one department does it.",
       },
       {
         level: 5,
-        relevantEvidenceIds: ["prophecy-scroll", "vision-journal", "starry-robes"],
-        objective: "Guide toward the final conclusion",
+        relevantEvidenceIds: ["final-note", "production-door"],
+        objective: "Deliver the closing join without naming anyone",
         maximumRevelation:
-          "The killer acted not out of hatred but out of duty. They believed Aldren's death was a sacrifice necessary to save the realm from what his visions would awaken.",
+          "Her last note says she confronted the leak and gave him until the second edition. The person who killed the story is the person she was threatening to print.",
       },
     ],
   },

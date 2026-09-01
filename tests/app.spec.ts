@@ -28,7 +28,7 @@ test.describe("Admin page", () => {
 
 test.describe("Win page", () => {
   test("loads with query params", async ({ page }) => {
-    await page.goto("/win?mysteryId=gilded-rose-mansion&score=850&time=300");
+    await page.goto("/win?mysteryId=room-314&score=850&time=300");
     await expect(page.locator("h1")).toContainText("Case Solved");
     await expect(page.locator("text=Score Breakdown")).toBeVisible();
   });
@@ -36,15 +36,15 @@ test.describe("Win page", () => {
 
 test.describe("Lost page", () => {
   test("loads with query params", async ({ page }) => {
-    await page.goto("/lost?mysteryId=hollowbrook-asylum");
+    await page.goto("/lost?mysteryId=vaughn-street");
     await expect(page.locator("h1")).toContainText("Case Failed");
   });
 });
 
 test.describe("Play page", () => {
   test("redirects to home if no session", async ({ page }) => {
-    await page.goto("/play/gilded-rose-mansion");
-    await page.waitForURL("**/play/gilded-rose-mansion");
+    await page.goto("/play/room-314");
+    await page.waitForURL("**/play/room-314");
     await expect(page.locator("h1")).toContainText("Case");
   });
 });

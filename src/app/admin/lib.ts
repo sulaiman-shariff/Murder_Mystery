@@ -1,9 +1,9 @@
 "use client";
 
 export const MYSTERY_NAMES: Record<string, string> = {
-  "gilded-rose-mansion": "Gilded Rose Mansion",
-  "hollowbrook-asylum": "Hollowbrook Asylum",
-  "veil-of-ebonmere": "Veil of Ebonmere",
+  "room-314": "Room 314, The Ashcombe",
+  "vaughn-street": "The Vaughn Street Theatre",
+  "northolt-press": "The Northolt Press",
 };
 
 export const MYSTERY_IDS = Object.keys(MYSTERY_NAMES);

@@ -126,7 +126,7 @@ export default function HomePage() {
         eventCode,
       });
 
-      window.location.href = `/play/${data.nextMysteryId || "gilded-rose-mansion"}`;
+      window.location.href = `/play/${data.nextMysteryId || "room-314"}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);
@@ -140,7 +140,7 @@ export default function HomePage() {
     const nextMystery = getMysteryByOrder(completedCount + 1);
     window.location.href = nextMystery
       ? `/play/${nextMystery.id}`
-      : "/play/gilded-rose-mansion";
+      : "/play/room-314";
   }
 
   function handleLogout() {

@@ -1,13 +1,9 @@
 import type { Mystery } from "@/types";
-import { gildedRoseMansion } from "./mysteries/gilded-rose-mansion";
-import { hollowbrookAsylum } from "./mysteries/hollowbrook-asylum";
-import { veilOfEbonmere } from "./mysteries/veil-of-ebonmere";
+import { room314 } from "./mysteries/room-314";
+import { vaughnStreet } from "./mysteries/vaughn-street";
+import { northoltPress } from "./mysteries/northolt-press";
 
-const mysteries: Mystery[] = [
-  gildedRoseMansion,
-  hollowbrookAsylum,
-  veilOfEbonmere,
-];
+const mysteries: Mystery[] = [room314, vaughnStreet, northoltPress];
 
 export function getMysteryById(id: string): Mystery | undefined {
   return mysteries.find((m) => m.id === id);
