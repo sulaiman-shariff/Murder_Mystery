@@ -309,6 +309,7 @@ export function resetMysteryProgress(mysteryId: string): void {
     `${prefix}${mysteryId}:timer`,
     `${prefix}${mysteryId}:notes`,
     `${prefix}${mysteryId}:evidence`,
+    `${prefix}${mysteryId}:board`,
   ];
   keys.forEach((k) => localStorage.removeItem(k));
   const completed = getCompletedMysteries();

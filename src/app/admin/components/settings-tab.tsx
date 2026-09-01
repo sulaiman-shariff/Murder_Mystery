@@ -11,6 +11,11 @@ export interface SettingsForm {
   speedBonusThresholdMinutes: number;
   speedBonus: number;
   minimumScore: number;
+  proofBonus: number;
+  alibiBonusPerBreak: number;
+  alibiBonusCap: number;
+  boardAccuracyBonus: number;
+  interrogationBonus: number;
   maxAttempts: number;
   currentMysteryLimit: number;
 }
@@ -27,6 +32,19 @@ const SCORING_FIELDS: {
   { key: "speedBonusThresholdMinutes", label: "Speed bonus under", help: "Minutes to beat for the bonus" },
   { key: "speedBonus", label: "Speed bonus", help: "Added when they beat that time" },
   { key: "minimumScore", label: "Minimum score", help: "A solved case never scores below this" },
+];
+
+/** The optional deduction tools. These only ever add to a score. */
+const BONUS_FIELDS: {
+  key: keyof SettingsForm;
+  label: string;
+  help: string;
+}[] = [
+  { key: "proofBonus", label: "Clean proof", help: "For proving it with no stray picks" },
+  { key: "alibiBonusPerBreak", label: "Per alibi broken", help: "Added for each alibi they break" },
+  { key: "alibiBonusCap", label: "Alibi bonus cap", help: "Most that alibi-breaking can earn" },
+  { key: "boardAccuracyBonus", label: "Case board", help: "Scaled by how accurate the board is" },
+  { key: "interrogationBonus", label: "Cracked a suspect", help: "For making one crack under questioning" },
 ];
 
 const EVENT_FIELDS: {
@@ -61,6 +79,25 @@ export function SettingsTab({
       <Card title="Scoring">
         <div className="grid gap-4 sm:grid-cols-2">
           {SCORING_FIELDS.map((field) => (
+            <NumberField
+              key={field.key}
+              id={field.key}
+              label={field.label}
+              help={field.help}
+              value={form[field.key]}
+              onChange={(value) => setField(field.key, value)}
+            />
+          ))}
+        </div>
+      </Card>
+
+      <Card title="Deduction bonuses">
+        <p className="mb-4 text-sm text-text-secondary">
+          Earned by the optional tools. They only ever add — set any to zero to
+          switch that reward off.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {BONUS_FIELDS.map((field) => (
             <NumberField
               key={field.key}
               id={field.key}
