@@ -225,3 +225,127 @@ test.describe("Mobile", () => {
     expect(overflow).toBe(0);
   });
 });
+
+test.describe("Multi-device state", () => {
+  test("two devices' edits both survive", async ({ request }) => {
+    const { teamId, eventId } = await newTeam(request);
+    await request.post("/api/sessions/start", {
+      data: { teamId, eventId, mysteryId: "room-314" },
+    });
+
+    // Same team cookie, two "devices" writing different fields.
+    await request.post("/api/sessions/state", {
+      data: {
+        mysteryId: "room-314",
+        deviceId: "d_A",
+        ops: [{ k: "notes", id: "marguerite-ash", v: "from device A" }],
+      },
+    });
+    await request.post("/api/sessions/state", {
+      data: {
+        mysteryId: "room-314",
+        deviceId: "d_B",
+        ops: [{ k: "pins", id: "door-log|dinah-coyle", v: true }],
+      },
+    });
+
+    const body = await (
+      await request.get("/api/sessions/state?mysteryId=room-314&since=-1")
+    ).json();
+
+    expect(body.state.doc.notes["marguerite-ash"].v).toBe("from device A");
+    expect(body.state.doc.pins["door-log|dinah-coyle"].v).toBe(true);
+  });
+
+  test("a client cannot write server-owned state", async ({ request }) => {
+    const { teamId, eventId } = await newTeam(request);
+    await request.post("/api/sessions/start", {
+      data: { teamId, eventId, mysteryId: "room-314" },
+    });
+
+    const res = await request.post("/api/sessions/state", {
+      data: {
+        mysteryId: "room-314",
+        ops: [{ k: "alibisBroken", id: "dinah-coyle", v: true }],
+      },
+    });
+    // A 400, not a silent drop — a client bug should surface.
+    expect(res.status()).toBe(400);
+  });
+
+  test("a client save cannot refund the alibi budget", async ({ request }) => {
+    const { teamId, eventId } = await newTeam(request);
+    await request.post("/api/sessions/start", {
+      data: { teamId, eventId, mysteryId: "room-314" },
+    });
+
+    await request.post("/api/alibi/challenge", {
+      data: {
+        mysteryId: "room-314",
+        suspectId: "hugo-vance",
+        evidenceIds: ["house-phone-log"],
+      },
+    });
+    await request.post("/api/sessions/state", {
+      data: {
+        mysteryId: "room-314",
+        ops: [{ k: "notes", id: "piers-landon", v: "anything" }],
+      },
+    });
+
+    const body = await (
+      await request.get("/api/sessions/state?mysteryId=room-314&since=-1")
+    ).json();
+
+    // This is the regression: the save used to delete both of these.
+    expect(body.state.server.alibisBroken).toContain("hugo-vance");
+    expect(body.state.server.challengesBySuspect["hugo-vance"]).toBe(1);
+  });
+
+  test("budgets hold when requests arrive at once", async ({ request }) => {
+    const { teamId, eventId } = await newTeam(request);
+    await request.post("/api/sessions/start", {
+      data: { teamId, eventId, mysteryId: "room-314" },
+    });
+
+    await Promise.all(
+      Array.from({ length: 6 }, () =>
+        request.post("/api/alibi/challenge", {
+          data: {
+            mysteryId: "room-314",
+            suspectId: "piers-landon",
+            evidenceIds: ["bar-tab"],
+          },
+        })
+      )
+    );
+
+    const body = await (
+      await request.get("/api/sessions/state?mysteryId=room-314&since=-1")
+    ).json();
+    expect(
+      body.state.server.challengesBySuspect["piers-landon"]
+    ).toBeLessThanOrEqual(2);
+  });
+});
+
+test.describe("Admin", () => {
+  const ADMIN_ROUTES = [
+    "/api/admin/monitor?eventCode=ATRIA",
+    "/api/admin/case-files",
+    "/api/admin/ai-health",
+  ];
+
+  for (const route of ADMIN_ROUTES) {
+    test(`${route.split("?")[0]} needs the admin cookie`, async ({ request }) => {
+      expect((await request.get(route)).status()).toBe(401);
+    });
+  }
+
+  test("the projector is public and exposes nothing private", async ({ page }) => {
+    await page.context().clearCookies();
+    await page.goto("/projector?eventCode=ATRIA");
+    await expect(page.locator("h1")).toContainText("Standings");
+    expect(await page.content()).not.toMatch(/"pin"/i);
+  });
+});

@@ -22,6 +22,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
+  // PINs are stripped from the response unless explicitly asked for. They
+  // used to be in every payload, including ones that auto-refresh on a laptop
+  // in a room full of players.
+  const includePins = request.nextUrl.searchParams.get("includePins") === "1";
+
   const { data: teams, error } = await supabase
     .from("teams")
     .select("id, name, pin, eventId:event_id, createdAt:created_at, lastActiveAt:last_active_at")
@@ -56,7 +61,7 @@ export async function GET(request: NextRequest) {
   const teamsWithSessions = teams.map((team) => ({
     id: team.id,
     name: team.name,
-    pin: team.pin,
+    pin: includePins ? team.pin : undefined,
     eventId: team.eventId,
     createdAt: team.createdAt,
     lastActiveAt: team.lastActiveAt,

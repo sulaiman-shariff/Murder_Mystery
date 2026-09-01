@@ -60,13 +60,11 @@ export function SettingsTab({
   form,
   onChange,
   onSave,
-  onClearData,
   saving,
 }: {
   form: SettingsForm;
   onChange: (next: SettingsForm) => void;
   onSave: () => void;
-  onClearData: () => void;
   saving: boolean;
 }) {
   function setField(key: keyof SettingsForm, value: string) {
@@ -131,16 +129,6 @@ export function SettingsTab({
           loading={saving}
         >
           Save settings
-        </Button>
-      </Card>
-
-      <Card tone="error" title="Danger zone">
-        <p className="mb-3 text-sm text-text-secondary">
-          Deletes every team, session and AI log for all events. There is no
-          undo.
-        </p>
-        <Button variant="danger" fullWidth onClick={onClearData}>
-          Delete all data
         </Button>
       </Card>
     </div>
