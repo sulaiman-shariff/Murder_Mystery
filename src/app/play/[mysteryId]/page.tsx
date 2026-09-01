@@ -351,7 +351,7 @@ export default function PlayPage() {
                   </p>
                   <div className="mt-4 flex flex-col gap-2">
                     <Button fullWidth size="lg" onClick={() => setShowSolve(true)}>
-                      Submit your answer
+                      Make your accusation
                     </Button>
                     <Button
                       variant="secondary"
@@ -425,7 +425,7 @@ export default function PlayPage() {
             </Button>
             {!completed && (
               <Button size="sm" fullWidth onClick={() => setShowSolve(true)}>
-                Solve
+                Accuse
               </Button>
             )}
           </div>
