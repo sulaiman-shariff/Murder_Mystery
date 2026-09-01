@@ -10,6 +10,7 @@ import { logAiInteraction } from "@/lib/database/ai-log";
 import { gradeProof, describeProof } from "@/lib/game/proof";
 import { calculateScore, calculateBonuses } from "@/lib/game/scoring";
 import { getEventScoring } from "@/lib/database/events";
+import { migrateState, boardPinList } from "@/lib/game/session-state";
 import type { BoardPin, SuspectRecord } from "@/types";
 
 /**
@@ -150,6 +151,8 @@ export async function POST(request: NextRequest) {
       const wrongAttempts = priorAttempts + 1;
       const failed = wrongAttempts >= maxAttempts;
 
+      // Guarded on the status we read: two accusations racing (or one
+      // replayed) can no longer both increment the counter.
       await supabase
         .from("game_sessions")
         .update({
@@ -159,7 +162,8 @@ export async function POST(request: NextRequest) {
           elapsed_seconds: elapsedSeconds,
           last_saved_at: new Date().toISOString(),
         })
-        .eq("id", session.id);
+        .eq("id", session.id)
+        .in("status", ["not_started", "in_progress"]);
 
       return NextResponse.json({
         verdict: failed ? "failed" : "rejected",
@@ -189,14 +193,12 @@ export async function POST(request: NextRequest) {
       scoring
     );
 
-    const state = (session.state ?? {}) as Record<string, unknown>;
-    const pins = Array.isArray(state.boardPins)
-      ? (state.boardPins as BoardPin[])
-      : [];
-    const alibisBroken = Array.isArray(state.alibisBroken)
-      ? (state.alibisBroken as string[]).length
-      : 0;
-    const cracked = Boolean(state.crackedASuspect);
+    // Board pins and alibi breaks are now stored as mergeable maps, so read
+    // them through the shared shape rather than assuming arrays.
+    const state = migrateState(session.state);
+    const pins = boardPinList(state);
+    const alibisBroken = state.server.alibisBroken.length;
+    const cracked = state.server.crackedASuspect;
 
     const bonuses = calculateBonuses(
       {
@@ -212,7 +214,7 @@ export async function POST(request: NextRequest) {
     const finalScore = result.score + bonuses.total;
     const now = new Date().toISOString();
 
-    await supabase
+    const { data: closed } = await supabase
       .from("game_sessions")
       .update({
         status: "completed",
@@ -221,20 +223,39 @@ export async function POST(request: NextRequest) {
         completed_at: now,
         last_saved_at: now,
       })
-      .eq("id", session.id);
+      .eq("id", session.id)
+      .in("status", ["not_started", "in_progress"])
+      .select("id");
+
+    // Someone else closed it between our status check and here.
+    if (!closed || closed.length === 0) {
+      return NextResponse.json(
+        { error: "This case is already closed." },
+        { status: 409 }
+      );
+    }
 
     // Open the next case.
     let nextMysteryId: string | null = null;
     const next = getMysteryByOrder(mystery.order + 1);
     if (next) {
       nextMysteryId = next.id;
-      await supabase.from("game_sessions").insert({
-        event_id: session.event_id,
-        team_id: teamId,
-        mystery_id: next.id,
-        status: "not_started",
-        last_saved_at: now,
-      });
+      const { data: already } = await supabase
+        .from("game_sessions")
+        .select("id")
+        .eq("team_id", teamId)
+        .eq("mystery_id", next.id)
+        .limit(1);
+
+      if (!already || already.length === 0) {
+        await supabase.from("game_sessions").insert({
+          event_id: session.event_id,
+          team_id: teamId,
+          mystery_id: next.id,
+          status: "not_started",
+          last_saved_at: now,
+        });
+      }
     }
 
     const timePenalty = Math.floor((elapsedSeconds / 60) * scoring.timePenaltyPerMinute);

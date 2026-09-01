@@ -7,6 +7,7 @@ import { getConfrontation } from "@/data/deduction";
 import { getSolutionById } from "@/data/solutions";
 import { interrogate, scrubInterrogation } from "@/lib/ai/client";
 import { logAiInteraction } from "@/lib/database/ai-log";
+import { loadSession, updateSessionState } from "@/lib/database/session-store";
 
 /** Shared across the whole case: scarcity is what makes the choice a decision. */
 const CONFRONTATIONS_PER_CASE = 6;
@@ -39,30 +40,57 @@ export async function POST(request: NextRequest) {
     const suspect = mystery.suspects.find((s) => s.id === suspectId);
     const evidence = mystery.evidence.find((e) => e.id === evidenceId);
     if (!suspect || !evidence) {
-      return NextResponse.json({ error: "Unknown suspect or evidence" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Unknown suspect or evidence" },
+        { status: 404 },
+      );
     }
 
     const supabase = createAdminClient();
-    const { data: session } = await supabase
-      .from("game_sessions")
-      .select("id, state")
-      .eq("team_id", teamId)
-      .eq("mystery_id", mysteryId)
-      .in("status", ["not_started", "in_progress"])
-      .order("last_saved_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const session = await loadSession(supabase, teamId, mysteryId);
 
     if (!session) {
       return NextResponse.json({ error: "No active session" }, { status: 404 });
     }
 
-    const state = (session.state ?? {}) as Record<string, unknown>;
-    const usedCount = typeof state.confrontationsUsed === "number"
-      ? state.confrontationsUsed
-      : 0;
+    if (session.state.server.confrontationsUsed >= CONFRONTATIONS_PER_CASE) {
+      return NextResponse.json({
+        exhausted: true,
+        remaining: 0,
+        reply:
+          "They have stopped answering you. You will have to work with what you already have.",
+      });
+    }
 
-    if (usedCount >= CONFRONTATIONS_PER_CASE) {
+    // Claim the slot BEFORE the model call. The check used to sit across the
+    // await, so a burst of parallel requests all passed it and the budget was
+    // never really six.
+    let usedCount = session.state.server.confrontationsUsed;
+    let overBudget = false;
+    try {
+      await updateSessionState(supabase, session, (current) => {
+        if (current.server.confrontationsUsed >= CONFRONTATIONS_PER_CASE) {
+          overBudget = true;
+          return current;
+        }
+        usedCount = current.server.confrontationsUsed;
+        return {
+          ...current,
+          server: {
+            ...current.server,
+            confrontationsUsed: current.server.confrontationsUsed + 1,
+          },
+        };
+      });
+    } catch {
+      return NextResponse.json({
+        exhausted: false,
+        remaining: CONFRONTATIONS_PER_CASE - usedCount,
+        reply: "Ask again in a moment — someone else is mid-question.",
+      });
+    }
+
+    if (overBudget) {
       return NextResponse.json({
         exhausted: true,
         remaining: 0,
@@ -96,30 +124,30 @@ export async function POST(request: NextRequest) {
       // On a trip, fall back to the authored beat rather than showing an
       // error — which also covers the model being unreachable.
       reply =
-        scrubInterrogation(generated, solution.murderer, solution.murdererAliases) ??
-        beat;
+        scrubInterrogation(
+          generated,
+          solution.murderer,
+          solution.murdererAliases,
+        ) ?? beat;
     } catch {
       reply = beat;
     }
 
-    const cracked = Boolean(state.crackedASuspect) || posture === "crack";
-    await supabase
-      .from("game_sessions")
-      .update({
-        state: {
-          ...state,
-          confrontationsUsed: usedCount + 1,
-          crackedASuspect: cracked,
-        },
-        last_saved_at: new Date().toISOString(),
-      })
-      .eq("id", session.id);
+    if (posture === "crack") {
+      const latest = await loadSession(supabase, teamId, mysteryId);
+      if (latest) {
+        await updateSessionState(supabase, latest, (current) => ({
+          ...current,
+          server: { ...current.server, crackedASuspect: true },
+        }));
+      }
+    }
 
     logAiInteraction(
       `${teamId}_${mysteryId}`,
-      "detective_chat",
+      "interrogation",
       `Confronted ${suspect.name} with ${evidence.title}`,
-      reply
+      reply,
     );
 
     return NextResponse.json({
@@ -132,7 +160,7 @@ export async function POST(request: NextRequest) {
     console.error("interrogate error:", err);
     return NextResponse.json(
       { error: "They could not be reached for questioning." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

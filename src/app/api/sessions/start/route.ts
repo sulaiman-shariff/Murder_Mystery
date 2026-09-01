@@ -2,15 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server-admin";
 import { getEventScoring } from "@/lib/database/events";
 import { getProofSpec } from "@/data/deduction";
+import { requireTeam } from "@/lib/auth/team-session";
+import { migrateState } from "@/lib/game/session-state";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { teamId, eventId, mysteryId } = body;
+    const { eventId, mysteryId } = body;
 
-    if (!teamId || !eventId || !mysteryId) {
+    // This route returned a team's entire saved state to anyone who could
+    // name their id. Identity now comes from the signed cookie.
+    const actor = requireTeam(request, body.teamId);
+    if (actor instanceof NextResponse) return actor;
+    const teamId = actor.teamId;
+
+    if (!eventId || !mysteryId) {
       return NextResponse.json(
-        { error: "teamId, eventId, and mysteryId are required" },
+        { error: "eventId and mysteryId are required" },
         { status: 400 }
       );
     }
@@ -19,9 +27,17 @@ export async function POST(request: NextRequest) {
 
     const { data: event } = await supabase
       .from("events")
-      .select("max_attempts")
+      .select("max_attempts, status")
       .eq("id", eventId)
       .single();
+
+    // Pausing or closing an event used to change nothing but a badge.
+    if (event && event.status !== "open") {
+      return NextResponse.json(
+        { error: "This event is not currently running." },
+        { status: 403 }
+      );
+    }
 
     const maxAttempts = event?.max_attempts || 10;
     // Sent to the client so the solve panel can preview a score using the
@@ -51,7 +67,7 @@ export async function POST(request: NextRequest) {
           last_saved_at: now,
         })
         .eq("id", existing.id)
-        .select("id, event_id, team_id, mystery_id, status, started_at, completed_at, wrong_attempts, hints_used, score, state, elapsed_seconds, last_saved_at")
+        .select("id, event_id, team_id, mystery_id, status, started_at, completed_at, wrong_attempts, hints_used, score, state, state_rev, elapsed_seconds, last_saved_at")
         .single();
 
       if (updated) {
@@ -69,7 +85,7 @@ export async function POST(request: NextRequest) {
         started_at: now,
         last_saved_at: now,
       })
-      .select("id, event_id, team_id, mystery_id, status, started_at, completed_at, wrong_attempts, hints_used, score, state, elapsed_seconds, last_saved_at")
+      .select("id, event_id, team_id, mystery_id, status, started_at, completed_at, wrong_attempts, hints_used, score, state, state_rev, elapsed_seconds, last_saved_at")
       .single();
 
     if (error) throw error;
@@ -96,7 +112,8 @@ function sessionRowToResponse(row: Record<string, unknown>) {
     wrongAttempts: row.wrong_attempts,
     hintsUsed: row.hints_used,
     score: row.score,
-    state: row.state,
+    state: migrateState(row.state),
+    stateRev: row.state_rev ?? 0,
     elapsedSeconds: row.elapsed_seconds,
     lastSavedAt: row.last_saved_at,
   };

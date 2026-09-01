@@ -14,6 +14,16 @@ export async function registerTeam(
     throw new Error("Event not found");
   }
 
+  // Closing or pausing an event should actually stop new teams joining.
+  const { data: event } = await supabase
+    .from("events")
+    .select("status")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (event && event.status !== "open") {
+    throw new Error("Event not open");
+  }
+
   const { data: existing } = await supabase
     .from("teams")
     .select("id")

@@ -25,7 +25,11 @@ function pruneStore() {
   }
 }
 
-export function checkRateLimit(key: string): NextResponse | null {
+export function checkRateLimit(
+  key: string,
+  options: { max?: number } = {}
+): NextResponse | null {
+  const max = options.max ?? MAX_REQUESTS;
   const now = Date.now();
   const entry = store.get(key);
 
@@ -35,7 +39,7 @@ export function checkRateLimit(key: string): NextResponse | null {
     return null;
   }
 
-  if (entry.count >= MAX_REQUESTS) {
+  if (entry.count >= max) {
     return NextResponse.json(
       { error: "Too many requests. Please slow down." },
       { status: 429 }

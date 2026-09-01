@@ -267,7 +267,8 @@ export type AiInteractionType =
   | "murderer_validation"
   | "motive_validation"
   | "hint"
-  | "detective_chat";
+  | "detective_chat"
+  | "interrogation";
 
 export interface AiInteraction {
   id: string;

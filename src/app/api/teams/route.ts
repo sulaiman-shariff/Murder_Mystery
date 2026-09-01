@@ -22,6 +22,11 @@ const KNOWN_ERRORS: { match: string; status: number; message: string }[] = [
     message: "Another team already registered that name. Pick a different one.",
   },
   {
+    match: "Event not open",
+    status: 403,
+    message: "That event is not open for teams right now.",
+  },
+  {
     match: "Event not found",
     status: 404,
     message: "That event code does not match an event. Check it and try again.",

@@ -4,6 +4,7 @@ import { requireTeam } from "@/lib/auth/team-session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getMysteryById } from "@/data/mystery-index";
 import { getAlibiBreak } from "@/data/deduction";
+import { loadSession, updateSessionState } from "@/lib/database/session-store";
 
 const CHALLENGES_PER_SUSPECT = 2;
 
@@ -49,25 +50,15 @@ export async function POST(request: NextRequest) {
       : [];
 
     const supabase = createAdminClient();
-    const { data: session } = await supabase
-      .from("game_sessions")
-      .select("id, state")
-      .eq("team_id", teamId)
-      .eq("mystery_id", mysteryId)
-      .in("status", ["not_started", "in_progress"])
-      .order("last_saved_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const session = await loadSession(supabase, teamId, mysteryId);
 
     if (!session) {
       return NextResponse.json({ error: "No active session" }, { status: 404 });
     }
 
-    const state = (session.state ?? {}) as Record<string, unknown>;
-    const used = (state.challengesBySuspect ?? {}) as Record<string, number>;
-    const broken = Array.isArray(state.alibisBroken)
-      ? (state.alibisBroken as string[])
-      : [];
+    const state = session.state;
+    const used = state.server.challengesBySuspect;
+    const broken = state.server.alibisBroken;
 
     if (broken.includes(suspectId)) {
       return NextResponse.json({
@@ -92,27 +83,57 @@ export async function POST(request: NextRequest) {
       authored.evidenceIds.every((id) => submitted.includes(id)) &&
       submitted.length <= authored.evidenceIds.length + 1;
 
-    const nextUsed: Record<string, number> = {
-      ...used,
-      [suspectId]: (used[suspectId] ?? 0) + 1,
-    };
-    const nextState: Record<string, unknown> = {
-      ...state,
-      challengesBySuspect: nextUsed,
-    };
-    if (correct) nextState.alibisBroken = [...broken, suspectId];
+    // The budget must be re-checked INSIDE the mutation. Checking it before
+    // the compare-and-swap reads a stale count, so a burst of simultaneous
+    // challenges all passed the check and every one of them incremented.
+    let remaining = 0;
+    let overBudget = false;
+    try {
+      await updateSessionState(supabase, session, (current) => {
+        const already = current.server.challengesBySuspect[suspectId] ?? 0;
+        if (already >= CHALLENGES_PER_SUSPECT) {
+          overBudget = true;
+          return current;
+        }
+        const spent = already + 1;
+        remaining = Math.max(0, CHALLENGES_PER_SUSPECT - spent);
+        return {
+          ...current,
+          server: {
+            ...current.server,
+            challengesBySuspect: {
+              ...current.server.challengesBySuspect,
+              [suspectId]: spent,
+            },
+            alibisBroken:
+              correct && !current.server.alibisBroken.includes(suspectId)
+                ? [...current.server.alibisBroken, suspectId]
+                : current.server.alibisBroken,
+          },
+        };
+      });
+    } catch {
+      // Lost every retry against other devices; refuse rather than 500.
+      return NextResponse.json({
+        broken: false,
+        message: "Too many at once — try that again.",
+      });
+    }
 
-    await supabase
-      .from("game_sessions")
-      .update({ state: nextState, last_saved_at: new Date().toISOString() })
-      .eq("id", session.id);
+    if (overBudget) {
+      return NextResponse.json({
+        broken: false,
+        exhausted: true,
+        message: "You have pressed this one as far as it will go.",
+      });
+    }
 
     if (!correct) {
       // Identical for "wrong evidence" and "this alibi cannot be broken".
       return NextResponse.json({
         broken: false,
         message: NEUTRAL_FAILURE,
-        remaining: CHALLENGES_PER_SUSPECT - nextUsed[suspectId],
+        remaining,
       });
     }
 

@@ -17,6 +17,7 @@ import { HintPanel } from "@/components/game/hint-panel";
 import { DetectiveChat } from "@/components/game/detective-chat";
 import { useGameSession } from "@/lib/game/use-game-session";
 import { storeLastResult } from "@/lib/game/last-result";
+import { useSharedState } from "@/lib/game/use-shared-state";
 import { CaseHeader } from "./components/case-header";
 import {
   IntroPanel,
@@ -53,19 +54,26 @@ export default function PlayPage() {
   const [showSolve, setShowSolve] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [showDetective, setShowDetective] = useState(false);
-  const [notes, setNotesState] = useState<Record<string, string>>({});
-  const [importantEvidence, setImportantEvidence] = useState<string[]>([]);
   const [completed, setCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [maxAttempts, setMaxAttempts] = useState(10);
   const [scoring, setScoring] = useState<ScoringSettings | undefined>();
-  const [boardPins, setBoardPins] = useState<BoardPin[]>([]);
-  const [alibisBroken, setAlibisBroken] = useState<string[]>([]);
   const [maxSelections, setMaxSelections] = useState(5);
   const [alibiFor, setAlibiFor] = useState<string | null>(null);
   const [confrontFor, setConfrontFor] = useState<string | null>(null);
 
   const session = useGameSession(mystery);
+  // One shared document for the whole team, merged across their devices.
+  const shared = useSharedState(mysteryId, !!mystery && !completed);
+  const {
+    notes,
+    importantEvidence,
+    boardPins,
+    alibisBroken,
+    setNote,
+    toggleEvidence,
+    setPins,
+  } = shared;
   const teamId = typeof window !== "undefined" ? getTeam()?.id : null;
   const syncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSyncRef = useRef<Record<string, unknown> | null>(null);
@@ -79,8 +87,6 @@ export default function PlayPage() {
       return;
     }
 
-    setNotesState(getNotes(found.id));
-    setImportantEvidence(getImportantEvidence(found.id));
     setCompleted(isMysteryCompleted(found.id));
 
     if (!teamId) {
@@ -107,27 +113,7 @@ export default function PlayPage() {
           if (typeof data.maxSelections === "number") {
             setMaxSelections(data.maxSelections);
           }
-          const state = data.session.state as Record<string, unknown> | null;
-          if (state) {
-            if (state.notes) {
-              setNotesState(state.notes as Record<string, string>);
-            }
-            if (state.importantEvidence) {
-              setImportantEvidence(state.importantEvidence as string[]);
-            }
-            if (typeof state.wrongAttempts === "number") {
-              session.setWrongAttempts(state.wrongAttempts);
-            }
-            if (typeof state.hintsUsed === "number") {
-              session.setHintsUsed(state.hintsUsed);
-            }
-            if (Array.isArray(state.boardPins)) {
-              setBoardPins(state.boardPins as BoardPin[]);
-            }
-            if (Array.isArray(state.alibisBroken)) {
-              setAlibisBroken(state.alibisBroken as string[]);
-            }
-          }
+          shared.hydrate(data.session.state, data.session.stateRev ?? 0);
         }
       })
       .catch((err) => {
@@ -136,59 +122,6 @@ export default function PlayPage() {
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mysteryId, teamId]);
-
-  // Debounced write-back of notes and marked evidence.
-  useEffect(() => {
-    if (!mystery || !teamId) return;
-    if (syncRef.current) clearTimeout(syncRef.current);
-
-    const payload = {
-      teamId,
-      mysteryId: mystery.id,
-      state: {
-        notes,
-        importantEvidence,
-        boardPins,
-        wrongAttempts: session.wrongAttempts,
-        hintsUsed: session.hintsUsed,
-      },
-    };
-    pendingSyncRef.current = payload;
-    syncRef.current = setTimeout(() => {
-      fetch("/api/sessions/state", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).catch(() => {});
-      pendingSyncRef.current = null;
-    }, 2000);
-
-    return () => {
-      if (syncRef.current) clearTimeout(syncRef.current);
-    };
-  }, [
-    notes,
-    importantEvidence,
-    boardPins,
-    session.wrongAttempts,
-    session.hintsUsed,
-    mystery,
-    teamId,
-  ]);
-
-  // Flush anything still pending when the player navigates away.
-  useEffect(() => {
-    return () => {
-      if (pendingSyncRef.current) {
-        fetch("/api/sessions/state", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(pendingSyncRef.current),
-        }).catch(() => {});
-        pendingSyncRef.current = null;
-      }
-    };
-  }, []);
 
   // A new tab should start at the top, not wherever the last one was scrolled.
   useEffect(() => {
@@ -221,26 +154,6 @@ export default function PlayPage() {
     setShowSolve(false);
     router.push(`/lost?mysteryId=${mysteryId}`);
   }, [mysteryId, router]);
-
-  const handleNoteChange = useCallback(
-    (suspectId: string, text: string) => {
-      if (!mystery) return;
-      saveNotes(mystery.id, suspectId, text);
-      setNotesState((prev) => ({ ...prev, [suspectId]: text }));
-    },
-    [mystery]
-  );
-
-  const handleToggleEvidence = useCallback(
-    (evidenceId: string) => {
-      if (!mystery) return;
-      const isMarked = toggleImportantEvidence(mystery.id, evidenceId);
-      setImportantEvidence((prev) =>
-        isMarked ? [...prev, evidenceId] : prev.filter((id) => id !== evidenceId)
-      );
-    },
-    [mystery]
-  );
 
   if (loading) {
     return <LoadingScreen label="Opening the case file" />;
@@ -315,7 +228,7 @@ export default function PlayPage() {
               <SuspectsPanel
                 mystery={mystery}
                 notes={notes}
-                onNoteChange={handleNoteChange}
+                onNoteChange={setNote}
                 alibisBroken={alibisBroken}
                 onChallengeAlibi={setAlibiFor}
                 onConfront={setConfrontFor}
@@ -326,7 +239,7 @@ export default function PlayPage() {
               <EvidencePanel
                 mystery={mystery}
                 importantEvidence={importantEvidence}
-                onToggleEvidence={handleToggleEvidence}
+                onToggleEvidence={toggleEvidence}
               />
             )}
 
@@ -336,7 +249,7 @@ export default function PlayPage() {
               <BoardPanel
                 mystery={mystery}
                 pins={boardPins}
-                onChange={setBoardPins}
+                onChange={setPins}
                 alibisBroken={alibisBroken}
               />
             )}
@@ -466,11 +379,9 @@ export default function PlayPage() {
             mystery={mystery}
             suspect={mystery.suspects.find((s) => s.id === alibiFor)!}
             onClose={() => setAlibiFor(null)}
-            onBroken={(id) =>
-              setAlibisBroken((prev) =>
-                prev.includes(id) ? prev : [...prev, id]
-              )
-            }
+            onBroken={() => {
+              // Server-owned; the next poll brings it back authoritatively.
+            }}
           />
         )}
 
