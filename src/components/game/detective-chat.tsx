@@ -3,7 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Sheet } from "@/components/ui/sheet";
+import { SendIcon } from "@/components/ui/icons";
 import { getTeam } from "@/lib/storage/local";
+import { cn } from "@/lib/cn";
 import type { Mystery, DetectiveChatMessage } from "@/types";
 
 interface DetectiveChatProps {
@@ -14,31 +17,30 @@ interface DetectiveChatProps {
 const SUGGESTED_QUESTIONS = [
   "Which evidence should we review?",
   "Do any alibis conflict?",
-  "What details are easy to overlook?",
+  "What is easy to overlook here?",
   "What should we compare next?",
-  "Give us a small hint.",
 ];
 
 export function DetectiveChat({ mystery, onClose }: DetectiveChatProps) {
   const [messages, setMessages] = useState<DetectiveChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
-  }, [messages]);
+    endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, [messages, loading]);
 
   async function sendMessage(question: string) {
     if (!question.trim() || loading) return;
 
-    const playerMsg: DetectiveChatMessage = {
+    const playerMessage: DetectiveChatMessage = {
       role: "player",
       content: question,
       timestamp: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, playerMsg]);
+    setMessages((prev) => [...prev, playerMessage]);
     setInput("");
     setLoading(true);
 
@@ -47,6 +49,7 @@ export function DetectiveChat({ mystery, onClose }: DetectiveChatProps) {
         .slice(-6)
         .map((m) => `${m.role}: ${m.content}`)
         .join("\n");
+      const team = getTeam();
 
       const res = await fetch("/api/ai/detective-chat", {
         method: "POST",
@@ -55,125 +58,141 @@ export function DetectiveChat({ mystery, onClose }: DetectiveChatProps) {
           question,
           mysteryId: mystery.id,
           conversationHistory: history,
-          sessionId: getTeam()?.id ? `${getTeam()!.id}_${mystery.id}` : undefined,
+          sessionId: team?.id ? `${team.id}_${mystery.id}` : undefined,
         }),
       });
       const data = await res.json();
 
-      const detectiveMsg: DetectiveChatMessage = {
-        role: "detective",
-        content: data.response,
-        timestamp: new Date().toISOString(),
-      };
-
-      setMessages((prev) => [...prev, detectiveMsg]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "detective",
+          content: data.response,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     } catch {
-      const errorMsg: DetectiveChatMessage = {
-        role: "detective",
-        content:
-          "The detective is having trouble connecting. Please try again.",
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "detective",
+          content: "I cannot be reached right now. Try me again in a moment.",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
     } finally {
       setLoading(false);
     }
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    sendMessage(input);
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/80 sm:items-center sm:justify-center">
-      <div className="bottom-sheet flex max-h-[90vh] w-full flex-col rounded-t-2xl bg-dark-900 sm:mx-4 sm:max-w-md sm:rounded-2xl border border-border-dark">
-        <div className="flex items-center justify-between border-b border-border-dark px-4 py-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-accent">
-            Ask the Detective
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-text-muted hover:text-text-primary text-lg leading-none"
-          >
-            &times;
-          </button>
-        </div>
-
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto p-4 space-y-3"
-          style={{ maxHeight: "50vh" }}
-        >
-          {messages.length === 0 && (
-            <div className="space-y-2">
-              <Card className="bg-dark-800 border-border-dark">
-                <p className="text-xs leading-relaxed text-text-muted">
-                  Ask the detective for guidance. You can ask about evidence,
-                  suspects, alibis, or anything that seems suspicious.
-                </p>
-              </Card>
-              <div className="flex flex-wrap gap-2">
-                {SUGGESTED_QUESTIONS.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => sendMessage(q)}
-                    disabled={loading}
-                    className={`rounded-full border border-border-dark bg-dark-800 px-3 py-1 text-[10px] transition-colors ${
-                      loading
-                        ? "text-text-muted/50 cursor-not-allowed"
-                        : "text-text-secondary hover:border-accent/50 hover:text-text-primary"
-                    }`}
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`flex ${msg.role === "player" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                  msg.role === "player"
-                    ? "bg-accent/20 text-text-primary"
-                    : "bg-dark-700 text-text-secondary"
-                }`}
-              >
-                <p className="leading-relaxed">{msg.content}</p>
-              </div>
-            </div>
-          ))}
-
-          {loading && (
-            <div className="flex justify-start">
-              <div className="rounded-lg bg-dark-700 px-3 py-2 text-sm text-text-muted">
-                <span className="inline-block animate-pulse">Thinking...</span>
-              </div>
-            </div>
-          )}
-        </div>
-
+    <Sheet
+      title="Ask the detective"
+      onClose={onClose}
+      footer={
         <form
-          onSubmit={handleSubmit}
-          className="flex items-center gap-2 border-t border-border-dark p-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void sendMessage(input);
+          }}
+          className="flex items-center gap-2"
         >
           <input
+            type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask the detective..."
-            className="flex-1 rounded border border-border-dark bg-dark-800 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
+            placeholder="Ask about evidence, alibis, anything…"
+            aria-label="Your question"
             disabled={loading}
+            className={cn(
+              "min-h-11 flex-1 rounded border border-border-dark bg-ink-800 px-3 py-2",
+              "text-base text-text-primary placeholder:text-text-muted",
+              "focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/40",
+              "disabled:opacity-50"
+            )}
           />
-          <Button type="submit" size="sm" disabled={!input.trim() || loading}>
-            Send
+          <Button
+            type="submit"
+            aria-label="Send"
+            disabled={!input.trim() || loading}
+            className="w-11 shrink-0 px-0"
+          >
+            <SendIcon className="h-4 w-4" />
           </Button>
         </form>
+      }
+    >
+      <div className="space-y-3">
+        {messages.length === 0 && (
+          <div className="space-y-3">
+            <Card>
+              <p className="text-[15px] leading-relaxed text-text-secondary">
+                I have read the same file you have. Ask me what to look at
+                next — I will point, but I will not hand you the answer.
+              </p>
+            </Card>
+            <div className="flex flex-wrap gap-2">
+              {SUGGESTED_QUESTIONS.map((question) => (
+                <button
+                  key={question}
+                  type="button"
+                  onClick={() => void sendMessage(question)}
+                  disabled={loading}
+                  className={cn(
+                    "min-h-11 rounded-full border border-border-mid px-4 py-2",
+                    "text-xs text-text-secondary transition-colors",
+                    "hover:border-accent/60 hover:text-text-primary",
+                    "disabled:cursor-not-allowed disabled:opacity-50"
+                  )}
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((message, index) => (
+          <div
+            key={`${message.timestamp}-${index}`}
+            className={cn(
+              "flex",
+              message.role === "player" ? "justify-end" : "justify-start"
+            )}
+          >
+            <div
+              className={cn(
+                "max-w-[85%] rounded-lg px-3 py-2 text-[15px] leading-relaxed",
+                message.role === "player"
+                  ? "bg-accent/20 text-text-primary"
+                  : "bg-ink-700 text-text-secondary"
+              )}
+            >
+              {message.content}
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div className="flex justify-start">
+            <div
+              className="flex gap-1.5 rounded-lg bg-ink-700 px-3 py-3"
+              role="status"
+              aria-label="The detective is thinking"
+            >
+              {[0, 1, 2].map((dot) => (
+                <span
+                  key={dot}
+                  className="h-1.5 w-1.5 animate-pulse rounded-full bg-text-muted"
+                  style={{ animationDelay: `${dot * 160}ms` }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div ref={endRef} />
       </div>
-    </div>
+    </Sheet>
   );
 }

@@ -1,22 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE;
 const COOKIE_NAME = "mm_admin_token";
 
-export function createAdminCookieValue(passcode: string): string {
-  const timestamp = Date.now().toString();
-  const payload = `${passcode}:${timestamp}`;
-  return Buffer.from(payload).toString("base64");
+export const SESSION_TTL_SECONDS = 2 * 60 * 60;
+
+/**
+ * Admin sessions are a signed expiry, not the passcode itself.
+ *
+ * The cookie reads `<expiryEpochMs>.<hmac>`, where the HMAC is keyed by
+ * ADMIN_PASSCODE. That means the passcode never travels to the browser, and
+ * the expiry cannot be extended by hand without also forging the signature.
+ */
+function sign(expiry: string): string {
+  return createHmac("sha256", ADMIN_PASSCODE!).update(expiry).digest("hex");
+}
+
+/** Constant-time string compare that tolerates unequal lengths. */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, "utf8");
+  const bufB = Buffer.from(b, "utf8");
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
+
+export function isValidPasscode(candidate: unknown): boolean {
+  if (!ADMIN_PASSCODE || typeof candidate !== "string") return false;
+  return safeEqual(candidate, ADMIN_PASSCODE);
+}
+
+export function createAdminCookieValue(): string {
+  const expiry = (Date.now() + SESSION_TTL_SECONDS * 1000).toString();
+  return `${expiry}.${sign(expiry)}`;
 }
 
 export function verifyAdminCookie(cookieValue: string): boolean {
   if (!ADMIN_PASSCODE) return false;
+
+  const [expiry, signature] = cookieValue.split(".");
+  if (!expiry || !signature) return false;
+
+  const expiresAt = Number(expiry);
+  if (!Number.isFinite(expiresAt) || Date.now() > expiresAt) return false;
+
   try {
-    const decoded = Buffer.from(cookieValue, "base64").toString("utf-8");
-    const [passcode, timestamp] = decoded.split(":");
-    if (passcode !== ADMIN_PASSCODE) return false;
-    const age = Date.now() - parseInt(timestamp);
-    return age < 2 * 60 * 60 * 1000;
+    return safeEqual(signature, sign(expiry));
   } catch {
     return false;
   }
@@ -30,8 +59,7 @@ export function requireAdmin(request: NextRequest): NextResponse | null {
     );
   }
 
-  const authHeader = request.headers.get("x-admin-passcode");
-  if (authHeader === ADMIN_PASSCODE) {
+  if (isValidPasscode(request.headers.get("x-admin-passcode"))) {
     return null;
   }
 
@@ -40,10 +68,7 @@ export function requireAdmin(request: NextRequest): NextResponse | null {
     return null;
   }
 
-  return NextResponse.json(
-    { error: "Unauthorized" },
-    { status: 401 }
-  );
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
 export { COOKIE_NAME };

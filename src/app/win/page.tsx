@@ -1,186 +1,147 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Stamp } from "@/components/ui/stamp";
+import { LoadingScreen } from "@/components/ui/skeleton";
+import { CaseSolution } from "@/components/game/case-solution";
 import { getMysteryById } from "@/data/mystery-index";
-import { useEffect, useState, Suspense } from "react";
+import { readLastResult, type ScoreBreakdown } from "@/lib/game/last-result";
 import type { Mystery } from "@/types";
-import { calculateScore, DEFAULT_SCORING } from "@/lib/game/scoring";
 
 function WinContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [mystery, setMystery] = useState<Mystery | null>(null);
+  const [breakdown, setBreakdown] = useState<ScoreBreakdown | null>(null);
 
   const mysteryId = searchParams.get("mysteryId") || "";
-  const score = parseInt(searchParams.get("score") || "0");
-  const time = parseInt(searchParams.get("time") || "0");
-  const nextMysteryId = searchParams.get("nextMysteryId") || null;
+  const score = parseInt(searchParams.get("score") || "0", 10);
+  const time = parseInt(searchParams.get("time") || "0", 10);
+  const nextMysteryId = searchParams.get("nextMysteryId");
 
   useEffect(() => {
-    const m = getMysteryById(mysteryId);
-    setMystery(m || null);
+    setMystery(getMysteryById(mysteryId) || null);
+    setBreakdown(readLastResult(mysteryId)?.breakdown ?? null);
   }, [mysteryId]);
 
-  function formatTime(seconds: number) {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  }
-
-  const breakdown = (() => {
-    const timeMinutes = time / 60;
-    const timePenalty = Math.floor(timeMinutes * DEFAULT_SCORING.timePenaltyPerMinute);
-    const wrongPenalty = 0;
-    const hintPenalty = 0;
-    const bonus = timeMinutes < DEFAULT_SCORING.speedBonusThresholdMinutes ? DEFAULT_SCORING.speedBonus : 0;
-    return { base: DEFAULT_SCORING.baseScore, timePenalty, wrongPenalty, hintPenalty, bonus };
-  })();
-
   if (!mystery) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-text-muted">Loading...</p>
-      </div>
-    );
+    return <LoadingScreen label="Closing the file" />;
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center px-4 py-12">
-      <div className="w-full max-w-md text-center">
-        <div className="mb-4 text-5xl">🔍</div>
-        <h1 className="mb-2 text-2xl font-bold text-gold">Case Solved!</h1>
-        <p className="mb-8 text-sm text-text-secondary">
-          {mystery.title}
-        </p>
+    <div className="safe-top safe-bottom flex min-h-dvh flex-col items-center px-4 py-10">
+      <div className="w-full max-w-md">
+        <div className="mb-10 flex flex-col items-center text-center">
+          <Stamp tone="gold" slam className="text-lg">
+            Case Closed
+          </Stamp>
+          <p className="mt-6 font-display text-sm uppercase tracking-[0.15em] text-text-muted">
+            {mystery.title}
+          </p>
+        </div>
 
-        <div className="mb-8 grid grid-cols-2 gap-3">
+        <div className="mb-4 grid grid-cols-2 gap-3">
           <Card className="text-center">
-            <p className="text-[10px] uppercase tracking-wider text-text-muted">
+            <p className="font-display text-[11px] uppercase tracking-[0.15em] text-text-muted">
               Score
             </p>
-            <p className="text-2xl font-bold text-gold">{score}</p>
+            <p className="mt-1 font-mono text-3xl font-semibold tabular-nums text-gold">
+              {score}
+            </p>
           </Card>
           <Card className="text-center">
-            <p className="text-[10px] uppercase tracking-wider text-text-muted">
+            <p className="font-display text-[11px] uppercase tracking-[0.15em] text-text-muted">
               Time
             </p>
-            <p className="text-2xl font-bold text-text-primary">
+            <p className="mt-1 font-mono text-3xl font-semibold tabular-nums text-text-primary">
               {formatTime(time)}
             </p>
           </Card>
         </div>
 
-        <Card className="mb-8 border-accent/30">
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-accent">
-            Score Breakdown
-          </h3>
-          <div className="space-y-1 text-xs text-text-secondary">
-            <div className="flex justify-between">
-              <span>Base score</span>
-              <span className="text-text-primary">+{breakdown.base}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Time penalty</span>
-              <span className="text-error">-{breakdown.timePenalty}</span>
-            </div>
-            {breakdown.wrongPenalty > 0 && (
-              <div className="flex justify-between">
-                <span>Wrong attempt penalty</span>
-                <span className="text-error">-{breakdown.wrongPenalty}</span>
+        {breakdown && (
+          <Card title="How that adds up" className="mb-4">
+            <dl className="space-y-1.5 text-sm">
+              <Row label="Base score" value={`+${breakdown.base}`} />
+              {breakdown.timePenalty > 0 && (
+                <Row
+                  label="Time"
+                  value={`-${breakdown.timePenalty}`}
+                  tone="error"
+                />
+              )}
+              {breakdown.wrongPenalty > 0 && (
+                <Row
+                  label="Wrong accusations"
+                  value={`-${breakdown.wrongPenalty}`}
+                  tone="error"
+                />
+              )}
+              {breakdown.hintPenalty > 0 && (
+                <Row
+                  label="Hints"
+                  value={`-${breakdown.hintPenalty}`}
+                  tone="error"
+                />
+              )}
+              {breakdown.bonus > 0 && (
+                <Row
+                  label="Speed bonus"
+                  value={`+${breakdown.bonus}`}
+                  tone="gold"
+                />
+              )}
+              <div className="mt-2 flex justify-between border-t border-border-dark pt-2 font-semibold">
+                <dt className="text-text-primary">Final</dt>
+                <dd className="font-mono tabular-nums text-gold">
+                  {breakdown.total}
+                </dd>
               </div>
+            </dl>
+            {breakdown.total === breakdown.minimumScore && (
+              <p className="mt-2 text-xs text-text-muted">
+                Held at the minimum score for a solved case.
+              </p>
             )}
-            {breakdown.hintPenalty > 0 && (
-              <div className="flex justify-between">
-                <span>Hint penalty</span>
-                <span className="text-error">-{breakdown.hintPenalty}</span>
-              </div>
-            )}
-            {breakdown.bonus > 0 && (
-              <div className="flex justify-between">
-                <span>Speed bonus</span>
-                <span className="text-gold">+{breakdown.bonus}</span>
-              </div>
-            )}
-            <div className="border-t border-border-dark pt-1 flex justify-between font-bold">
-              <span>Final score</span>
-              <span className="text-gold">{score}</span>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
-        <Card className="mb-8 border-accent/30">
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-accent">
-            The Solution
-          </h3>
-          <div className="space-y-3 text-left text-sm">
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-text-muted">
-                Murderer
-              </p>
-              <p className="font-bold text-text-primary">
-                {mystery.solution.murderer}
-              </p>
-              <p className="text-xs text-text-secondary">
-                {mystery.solution.murdererDescription}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-text-muted">
-                Motive
-              </p>
-              <p className="text-text-secondary">
-                {mystery.solution.motiveSummary}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-text-muted">
-                Explanation
-              </p>
-              <p className="text-text-secondary leading-relaxed">
-                {mystery.solution.explanation}
-              </p>
-            </div>
-          </div>
-        </Card>
+        <div className="mb-6">
+          <CaseSolution mysteryId={mystery.id} />
+        </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {nextMysteryId ? (
             <Button
               fullWidth
-              className="min-h-[44px]"
-              onClick={() =>
-                router.push(`/play/${nextMysteryId}`)
-              }
+              size="lg"
+              onClick={() => router.push(`/play/${nextMysteryId}`)}
             >
-              Next Case
+              Open the next case
             </Button>
           ) : (
-            <Card className="border-gold/30 bg-gold/5 text-center">
-              <p className="text-sm font-bold text-gold">
-                All Mysteries Solved!
+            <Card tone="gold" className="text-center">
+              <p className="font-display text-base text-gold">
+                Every case closed
               </p>
-              <p className="mt-1 text-xs text-text-secondary">
-                You have completed every case. You are a master detective.
+              <p className="mt-1 text-sm text-text-secondary">
+                There is nothing left in the archive. Well done.
               </p>
             </Card>
           )}
 
           <Button
-            variant="ghost"
+            variant="secondary"
             fullWidth
             onClick={() => router.push("/leaderboard")}
           >
-            View Leaderboard
+            View leaderboard
           </Button>
-
-          <Button
-            variant="ghost"
-            fullWidth
-            onClick={() => router.push("/")}
-          >
-            Back to Home
+          <Button variant="ghost" fullWidth onClick={() => router.push("/")}>
+            Back to home
           </Button>
         </div>
       </div>
@@ -188,9 +149,40 @@ function WinContent() {
   );
 }
 
+function Row({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "error" | "gold";
+}) {
+  const toneClass =
+    tone === "error"
+      ? "text-error"
+      : tone === "gold"
+        ? "text-gold"
+        : "text-text-primary";
+  return (
+    <div className="flex justify-between">
+      <dt className="text-text-secondary">{label}</dt>
+      <dd className={`font-mono tabular-nums ${toneClass}`}>{value}</dd>
+    </div>
+  );
+}
+
+function formatTime(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `${minutes.toString().padStart(2, "0")}:${rest
+    .toString()
+    .padStart(2, "0")}`;
+}
+
 export default function WinPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><p className="text-text-muted">Loading...</p></div>}>
+    <Suspense fallback={<LoadingScreen label="Closing the file" />}>
       <WinContent />
     </Suspense>
   );

@@ -1,10 +1,12 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { getMysteryById } from "@/data/mystery-index";
 import { useEffect, useState, Suspense } from "react";
+import { Button } from "@/components/ui/button";
+import { Stamp } from "@/components/ui/stamp";
+import { LoadingScreen } from "@/components/ui/skeleton";
+import { CaseSolution } from "@/components/game/case-solution";
+import { getMysteryById } from "@/data/mystery-index";
 import type { Mystery } from "@/types";
 
 function LostContent() {
@@ -15,70 +17,49 @@ function LostContent() {
   const mysteryId = searchParams.get("mysteryId") || "";
 
   useEffect(() => {
-    const m = getMysteryById(mysteryId);
-    setMystery(m || null);
+    setMystery(getMysteryById(mysteryId) || null);
   }, [mysteryId]);
 
   if (!mystery) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-text-muted">Loading...</p>
-      </div>
-    );
+    return <LoadingScreen label="Filing the case" />;
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md text-center">
-        <div className="mb-4 text-5xl">⚖️</div>
-        <h1 className="mb-2 text-2xl font-bold text-accent">Case Failed</h1>
-        <p className="mb-8 text-sm text-text-secondary">
-          You've exhausted all your attempts for{" "}
-          <span className="text-text-primary">{mystery.title}</span>
-        </p>
+    <div className="safe-top safe-bottom flex min-h-dvh flex-col items-center px-4 py-10">
+      <div className="w-full max-w-md">
+        <div className="mb-10 flex flex-col items-center text-center">
+          <Stamp tone="accent" slam className="text-lg">
+            Case Cold
+          </Stamp>
+          <p className="mt-6 font-display text-sm uppercase tracking-[0.15em] text-text-muted">
+            {mystery.title}
+          </p>
+          <p className="mt-3 text-[15px] leading-relaxed text-text-secondary">
+            You ran out of accusations. Here is who did it, and why.
+          </p>
+        </div>
 
-        <Card className="mb-8 border-accent/30">
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-accent">
-            Case Review
-          </h3>
-          <div className="space-y-3 text-left text-sm">
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-text-muted">
-                The Murderer Was
-              </p>
-              <p className="font-bold text-text-primary">
-                {mystery.solution.murderer}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-text-muted">
-                The Motive
-              </p>
-              <p className="text-text-secondary">
-                {mystery.solution.motiveSummary}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-text-muted">
-                Explanation
-              </p>
-              <p className="text-text-secondary leading-relaxed">
-                {mystery.solution.explanation}
-              </p>
-            </div>
-          </div>
-        </Card>
+        <div className="mb-6">
+          <CaseSolution mysteryId={mystery.id} />
+        </div>
 
-        <div className="flex flex-col gap-3">
-          <Button fullWidth onClick={() => router.push(`/play/${mystery.id}`)}>
-            Review Evidence
+        <div className="flex flex-col gap-2">
+          <Button
+            fullWidth
+            size="lg"
+            onClick={() => router.push(`/play/${mystery.id}`)}
+          >
+            Reread the file
           </Button>
           <Button
-            variant="ghost"
+            variant="secondary"
             fullWidth
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/leaderboard")}
           >
-            Back to Home
+            View leaderboard
+          </Button>
+          <Button variant="ghost" fullWidth onClick={() => router.push("/")}>
+            Back to home
           </Button>
         </div>
       </div>
@@ -88,7 +69,7 @@ function LostContent() {
 
 export default function LostPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><p className="text-text-muted">Loading...</p></div>}>
+    <Suspense fallback={<LoadingScreen label="Filing the case" />}>
       <LostContent />
     </Suspense>
   );

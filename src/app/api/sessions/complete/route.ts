@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server-admin";
-import { calculateScore, DEFAULT_SCORING } from "@/lib/game/scoring";
+import { calculateScore } from "@/lib/game/scoring";
+import { getEventScoring } from "@/lib/database/events";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getMysteryById, getMysteryByOrder } from "@/data/mystery-index";
 
@@ -54,18 +55,25 @@ export async function POST(request: NextRequest) {
 
     const now = new Date().toISOString();
 
-    const finalScore = status === "completed"
-      ? calculateScore(
-          { elapsedSeconds: elapsedSeconds ?? 0, wrongAttempts: wrongAttempts ?? 0, hintsUsed: hintsUsed ?? 0, completed: true },
-          DEFAULT_SCORING
-        )
-      : { score: 0 };
+    // Score with the event's own rules, not the defaults — the admin
+    // Settings tab writes these and players expect them to apply.
+    const scoring = await getEventScoring(supabase, session.event_id);
+
+    const result = calculateScore(
+      {
+        elapsedSeconds: elapsedSeconds ?? 0,
+        wrongAttempts: wrongAttempts ?? 0,
+        hintsUsed: hintsUsed ?? 0,
+        completed: status === "completed",
+      },
+      scoring
+    );
 
     const { error } = await supabase
       .from("game_sessions")
       .update({
         status,
-        score: finalScore.score,
+        score: result.score,
         wrong_attempts: wrongAttempts ?? 0,
         hints_used: hintsUsed ?? 0,
         elapsed_seconds: elapsedSeconds ?? 0,
@@ -105,7 +113,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, score: finalScore.score, nextSessionId, nextMysteryId });
+    // The win screen renders this breakdown; it must be the same arithmetic
+    // the server just used, or the numbers on screen will not add up.
+    const timePenalty = Math.floor(
+      ((elapsedSeconds ?? 0) / 60) * scoring.timePenaltyPerMinute
+    );
+
+    return NextResponse.json({
+      success: true,
+      score: result.score,
+      nextSessionId,
+      nextMysteryId,
+      breakdown: {
+        base: scoring.baseScore,
+        timePenalty,
+        wrongPenalty: (wrongAttempts ?? 0) * scoring.wrongAttemptPenalty,
+        hintPenalty: (hintsUsed ?? 0) * scoring.hintPenalty,
+        bonus: result.bonus,
+        minimumScore: scoring.minimumScore,
+        total: result.score,
+      },
+    });
   } catch (err) {
     console.error("Session complete API error:", err);
     return NextResponse.json(

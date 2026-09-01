@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateMotive } from "@/lib/ai/client";
 import { getMysteryById } from "@/data/mystery-index";
+import { getSolutionById } from "@/data/solutions";
 import { logAiInteraction } from "@/lib/database/ai-log";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -28,7 +29,8 @@ export async function POST(request: NextRequest) {
     }
 
     const mystery = getMysteryById(mysteryId);
-    if (!mystery) {
+    const solution = getSolutionById(mysteryId);
+    if (!mystery || !solution) {
       return NextResponse.json(
         { error: "Mystery not found" },
         { status: 404 }
@@ -37,11 +39,11 @@ export async function POST(request: NextRequest) {
 
     const result = await validateMotive({
       playerMotive: guess,
-      canonicalMotive: mystery.solution.motiveSummary,
-      requiredConcepts: mystery.solution.motiveRequiredConcepts,
-      acceptableInterpretations: mystery.solution.acceptableMotiveInterpretations,
+      canonicalMotive: solution.motiveSummary,
+      requiredConcepts: solution.motiveRequiredConcepts,
+      acceptableInterpretations: solution.acceptableMotiveInterpretations,
       commonIncorrectInterpretations:
-        mystery.solution.commonIncorrectMotiveInterpretations || [],
+        solution.commonIncorrectMotiveInterpretations || [],
       mysteryContext: `${mystery.title}: ${mystery.introduction}`,
     });
 

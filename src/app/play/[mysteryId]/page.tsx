@@ -3,14 +3,26 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getMysteryById } from "@/data/mystery-index";
-import type { Mystery, GameSession } from "@/types";
+import type { Mystery, ScoringSettings } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Tabs, type TabItem } from "@/components/ui/tabs";
+import { LoadingScreen } from "@/components/ui/skeleton";
+import { Stamp } from "@/components/ui/stamp";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { SolveCase } from "@/components/game/solve-case";
+import { SolveCase, type SolveResult } from "@/components/game/solve-case";
 import { HintPanel } from "@/components/game/hint-panel";
 import { DetectiveChat } from "@/components/game/detective-chat";
 import { useGameSession } from "@/lib/game/use-game-session";
+import { storeLastResult } from "@/lib/game/last-result";
+import { CaseHeader } from "./components/case-header";
+import {
+  IntroPanel,
+  StoryPanel,
+  SuspectsPanel,
+  EvidencePanel,
+  TimelinePanel,
+} from "./components/tab-panels";
 import {
   saveNotes,
   getNotes,
@@ -20,7 +32,13 @@ import {
   getTeam,
 } from "@/lib/storage/local";
 
-type TabId = "introduction" | "story" | "suspects" | "evidence" | "timeline" | "solve";
+type TabId =
+  | "introduction"
+  | "story"
+  | "suspects"
+  | "evidence"
+  | "timeline"
+  | "solve";
 
 export default function PlayPage() {
   const params = useParams();
@@ -34,34 +52,33 @@ export default function PlayPage() {
   const [showDetective, setShowDetective] = useState(false);
   const [notes, setNotesState] = useState<Record<string, string>>({});
   const [importantEvidence, setImportantEvidence] = useState<string[]>([]);
-  const [expandedSuspect, setExpandedSuspect] = useState<string | null>(null);
-  const [evidenceFilter, setEvidenceFilter] = useState<string>("all");
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const [completed, setCompleted] = useState(false);
-  const [completionResult, setCompletionResult] = useState<{
-    score: number;
-    nextMysteryId: string | null;
-  } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dbSessionId, setDbSessionId] = useState<string | null>(null);
   const [maxAttempts, setMaxAttempts] = useState(10);
+  const [scoring, setScoring] = useState<ScoringSettings | undefined>();
 
   const session = useGameSession(mystery);
   const teamId = typeof window !== "undefined" ? getTeam()?.id : null;
   const syncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
   const pendingSyncRef = useRef<Record<string, unknown> | null>(null);
+  const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const m = getMysteryById(mysteryId);
-    setMystery(m || null);
-    if (!m) { setLoading(false); return; }
+    const found = getMysteryById(mysteryId);
+    setMystery(found || null);
+    if (!found) {
+      setLoading(false);
+      return;
+    }
 
-    setNotesState(getNotes(m.id));
-    setImportantEvidence(getImportantEvidence(m.id));
-    setCompleted(isMysteryCompleted(m.id));
+    setNotesState(getNotes(found.id));
+    setImportantEvidence(getImportantEvidence(found.id));
+    setCompleted(isMysteryCompleted(found.id));
 
-    if (!teamId) { setLoading(false); return; }
+    if (!teamId) {
+      setLoading(false);
+      return;
+    }
 
     fetch("/api/sessions/start", {
       method: "POST",
@@ -69,35 +86,46 @@ export default function PlayPage() {
       body: JSON.stringify({
         teamId,
         eventId: getTeam()?.eventId || "default",
-        mysteryId: m.id,
+        mysteryId: found.id,
       }),
     })
       .then((r) => r.json())
       .then((data) => {
         if (data.session) {
-          setDbSessionId(data.session.id);
-          if (typeof data.maxAttempts === "number") setMaxAttempts(data.maxAttempts);
-          if (data.session.state) {
-            const s = data.session.state as Record<string, unknown>;
-            if (s.notes) setNotesState(s.notes as Record<string, string>);
-            if (s.importantEvidence) setImportantEvidence(s.importantEvidence as string[]);
-            if (typeof s.wrongAttempts === "number") session.setWrongAttempts(s.wrongAttempts);
-            if (typeof s.hintsUsed === "number") session.setHintsUsed(s.hintsUsed);
+          if (typeof data.maxAttempts === "number") {
+            setMaxAttempts(data.maxAttempts);
+          }
+          if (data.scoring) setScoring(data.scoring as ScoringSettings);
+          const state = data.session.state as Record<string, unknown> | null;
+          if (state) {
+            if (state.notes) {
+              setNotesState(state.notes as Record<string, string>);
+            }
+            if (state.importantEvidence) {
+              setImportantEvidence(state.importantEvidence as string[]);
+            }
+            if (typeof state.wrongAttempts === "number") {
+              session.setWrongAttempts(state.wrongAttempts);
+            }
+            if (typeof state.hintsUsed === "number") {
+              session.setHintsUsed(state.hintsUsed);
+            }
           }
         }
-        setLoading(false);
       })
-      .catch(() => { setLoading(false); });
-
-    return () => {
-      abortRef.current?.abort();
-    };
+      .catch((err) => {
+        console.error("Could not start session:", err);
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mysteryId, teamId]);
 
+  // Debounced write-back of notes and marked evidence.
   useEffect(() => {
     if (!mystery || !teamId) return;
     if (syncRef.current) clearTimeout(syncRef.current);
-    const stateData = {
+
+    const payload = {
       teamId,
       mysteryId: mystery.id,
       state: {
@@ -107,12 +135,12 @@ export default function PlayPage() {
         hintsUsed: session.hintsUsed,
       },
     };
-    pendingSyncRef.current = stateData;
+    pendingSyncRef.current = payload;
     syncRef.current = setTimeout(() => {
       fetch("/api/sessions/state", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(stateData),
+        body: JSON.stringify(payload),
       }).catch(() => {});
       pendingSyncRef.current = null;
     }, 2000);
@@ -120,8 +148,16 @@ export default function PlayPage() {
     return () => {
       if (syncRef.current) clearTimeout(syncRef.current);
     };
-  }, [notes, importantEvidence, session.wrongAttempts, session.hintsUsed, mystery?.id, teamId]);
+  }, [
+    notes,
+    importantEvidence,
+    session.wrongAttempts,
+    session.hintsUsed,
+    mystery,
+    teamId,
+  ]);
 
+  // Flush anything still pending when the player navigates away.
   useEffect(() => {
     return () => {
       if (pendingSyncRef.current) {
@@ -135,31 +171,36 @@ export default function PlayPage() {
     };
   }, []);
 
+  // A new tab should start at the top, not wherever the last one was scrolled.
   useEffect(() => {
-    if (completed && mystery && completionResult) {
-      router.push(
-        `/win?mysteryId=${mystery.id}&score=${completionResult.score}&time=${session.elapsedSeconds}${completionResult.nextMysteryId ? `&nextMysteryId=${completionResult.nextMysteryId}` : ""}`
-      );
-    }
-  }, [completed, mystery, completionResult, session.elapsedSeconds, router]);
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [activeTab]);
 
   const handleComplete = useCallback(
-    (score: number, nextMysteryId: string | null) => {
-      setCompletionResult({ score, nextMysteryId });
-      setCompleted(true);
+    (result: SolveResult) => {
+      if (!mystery) return;
+      storeLastResult({
+        mysteryId: mystery.id,
+        score: result.score,
+        elapsedSeconds: session.elapsedSeconds,
+        breakdown: result.breakdown,
+      });
       setShowSolve(false);
+      setCompleted(true);
+      router.push(
+        `/win?mysteryId=${mystery.id}&score=${result.score}&time=${session.elapsedSeconds}` +
+          (result.nextMysteryId
+            ? `&nextMysteryId=${result.nextMysteryId}`
+            : "")
+      );
     },
-    []
+    [mystery, router, session.elapsedSeconds]
   );
 
   const handleFail = useCallback(() => {
     setShowSolve(false);
     router.push(`/lost?mysteryId=${mysteryId}`);
   }, [mysteryId, router]);
-
-  const handleHintUsed = useCallback(() => {
-    session.recordHint();
-  }, [session.recordHint]);
 
   const handleNoteChange = useCallback(
     (suspectId: string, text: string) => {
@@ -173,46 +214,33 @@ export default function PlayPage() {
   const handleToggleEvidence = useCallback(
     (evidenceId: string) => {
       if (!mystery) return;
-      const isImportant = toggleImportantEvidence(mystery.id, evidenceId);
+      const isMarked = toggleImportantEvidence(mystery.id, evidenceId);
       setImportantEvidence((prev) =>
-        isImportant
-          ? [...prev, evidenceId]
-          : prev.filter((id) => id !== evidenceId)
+        isMarked ? [...prev, evidenceId] : prev.filter((id) => id !== evidenceId)
       );
     },
     [mystery]
   );
 
-  const toggleSection = (sectionId: string) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [sectionId]: !prev[sectionId],
-    }));
-  };
-
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-text-muted animate-pulse">Loading case file...</p>
-      </div>
-    );
+    return <LoadingScreen label="Opening the case file" />;
   }
 
   if (!mystery) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-text-muted">Mystery not found</p>
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
+        <Stamp tone="muted">No such case</Stamp>
+        <p className="mt-4 text-sm text-text-muted">
+          That case is not in the archive.
+        </p>
+        <Button variant="secondary" onClick={() => router.push("/")}>
+          Back to home
+        </Button>
       </div>
     );
   }
 
-  const formatTimer = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
-  };
-
-  const tabs: { id: TabId; label: string }[] = [
+  const tabs: TabItem<TabId>[] = [
     { id: "introduction", label: "Case" },
     { id: "story", label: "Story" },
     { id: "suspects", label: "Suspects" },
@@ -221,451 +249,202 @@ export default function PlayPage() {
     ...(completed ? [] : [{ id: "solve" as TabId, label: "Solve" }]),
   ];
 
-  const evidenceCategories = [
-    { value: "all", label: "All" },
-    { value: "physical", label: "Physical" },
-    { value: "statement", label: "Statements" },
-    { value: "document", label: "Documents" },
-    { value: "timeline", label: "Timeline" },
-    { value: "digital", label: "Digital" },
-  ];
-
   return (
     <ErrorBoundary>
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-10 border-b border-border-dark bg-dark-900/95 backdrop-blur-sm">
-        <div className="flex items-center justify-between px-3 py-2">
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-xs font-bold uppercase tracking-wider text-accent">
-              Case #{mystery.order}
-            </h1>
-            <p className="truncate text-[10px] text-text-muted">
-              {mystery.title}
-            </p>
-          </div>
-          <div className="flex items-center gap-3 text-xs text-text-secondary">
-            {completed && <span className="text-gold text-[10px] uppercase">Completed</span>}
-            <span className="tabular-nums">{formatTimer(session.elapsedSeconds)}</span>
-            <span className="text-text-muted">|</span>
-            <span>Attempts: {session.wrongAttempts}/{maxAttempts}</span>
-          </div>
-        </div>
+      {/* h-dvh (not min-h-screen) makes <main> the real scroll container, so
+          overscroll containment applies and the bottom bar never floats over
+          dead space. */}
+      <div className="flex h-dvh flex-col">
+        <header className="safe-top z-10 shrink-0 border-b border-border-dark bg-ink-900">
+          <CaseHeader
+            order={mystery.order}
+            title={mystery.title}
+            elapsedSeconds={session.elapsedSeconds}
+            wrongAttempts={session.wrongAttempts}
+            maxAttempts={maxAttempts}
+            completed={completed}
+          />
+          <Tabs
+            tabs={tabs}
+            active={activeTab}
+            onChange={(id) => setActiveTab(id)}
+          />
+        </header>
 
-        <nav className="flex gap-1 overflow-x-auto px-3 pb-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`shrink-0 rounded px-3 py-1 text-[10px] uppercase tracking-wider transition-colors ${
-                activeTab === tab.id
-                  ? "bg-accent text-white"
-                  : "bg-dark-700 text-text-muted hover:text-text-primary"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </header>
+        <main
+          ref={mainRef}
+          className="scroll-region min-h-0 flex-1 overflow-y-auto p-3"
+        >
+          <div className="mx-auto w-full max-w-2xl">
+            {activeTab === "introduction" && (
+              <IntroPanel
+                mystery={mystery}
+                onGoToStory={() => setActiveTab("story")}
+                onGoToSuspects={() => setActiveTab("suspects")}
+              />
+            )}
 
-      <main className="game-content flex-1 overflow-y-auto p-3 pb-24">
-        {activeTab === "introduction" && (
-          <div className="space-y-3">
-            <Card>
-              <p className="text-sm leading-relaxed text-text-secondary">
-                {mystery.introduction}
-              </p>
-            </Card>
-            <Card>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-gold">
-                The Victim
-              </h3>
-              <p className="text-sm font-bold text-text-primary">
-                {mystery.victim.name}
-              </p>
-              <p className="text-xs text-text-muted">{mystery.victim.role}</p>
-              <p className="mt-2 text-sm leading-relaxed text-text-secondary">
-                {mystery.victim.description}
-              </p>
-            </Card>
+            {activeTab === "story" && <StoryPanel mystery={mystery} />}
 
-            <div className="flex gap-2">
-              <Button
-                variant="primary"
-                size="sm"
-                fullWidth
-                onClick={() => setActiveTab("story")}
-              >
-                Read the Story
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                fullWidth
-                onClick={() => setActiveTab("suspects")}
-              >
-                View Suspects
-              </Button>
-            </div>
-          </div>
-        )}
+            {activeTab === "suspects" && (
+              <SuspectsPanel
+                mystery={mystery}
+                notes={notes}
+                onNoteChange={handleNoteChange}
+              />
+            )}
 
-        {activeTab === "story" && (
-          <div className="space-y-3">
-            {mystery.storySections.map((section) => (
-              <Card key={section.id}>
-                <button
-                  onClick={() => toggleSection(section.id)}
-                  className="flex w-full items-center justify-between"
-                >
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gold">
-                    {section.title}
-                  </h3>
-                  <span className="text-text-muted text-sm">
-                    {expandedSections[section.id] ? "\u25B2" : "\u25BC"}
-                  </span>
-                </button>
-                {!!expandedSections[section.id] && (
-                  <p className="mt-2 text-sm leading-relaxed text-text-secondary">
-                    {section.content}
+            {activeTab === "evidence" && (
+              <EvidencePanel
+                mystery={mystery}
+                importantEvidence={importantEvidence}
+                onToggleEvidence={handleToggleEvidence}
+              />
+            )}
+
+            {activeTab === "timeline" && <TimelinePanel mystery={mystery} />}
+
+            {activeTab === "solve" && !completed && (
+              <div className="space-y-3">
+                <Card tone="accent" title="Close the case">
+                  <p className="text-[15px] leading-relaxed text-text-secondary">
+                    Name the murderer and explain their motive. Both have to be
+                    right — a wrong accusation costs you an attempt and points.
                   </p>
-                )}
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {activeTab === "suspects" && (
-          <div className="space-y-3">
-            {mystery.suspects.map((suspect) => (
-              <Card key={suspect.id}>
-                <button
-                  onClick={() =>
-                    setExpandedSuspect(
-                      expandedSuspect === suspect.id ? null : suspect.id
-                    )
-                  }
-                  className="flex w-full items-start justify-between"
-                >
-                  <div className="text-left">
-                    <h3 className="text-sm font-bold text-text-primary">
-                      {suspect.name}
-                    </h3>
-                    <p className="text-xs text-text-muted">{suspect.role}</p>
+                  <div className="mt-4 flex flex-col gap-2">
+                    <Button fullWidth size="lg" onClick={() => setShowSolve(true)}>
+                      Submit your answer
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      fullWidth
+                      onClick={() => setShowDetective(true)}
+                    >
+                      Ask the detective
+                    </Button>
+                    <Button
+                      variant="gold"
+                      fullWidth
+                      onClick={() => setShowHint(true)}
+                    >
+                      Request a hint
+                    </Button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded bg-dark-600 px-2 py-0.5 text-[10px] text-text-muted">
-                      {suspect.relationshipToVictim}
-                    </span>
-                    <span className="text-text-muted text-sm">
-                      {expandedSuspect === suspect.id ? "\u25B2" : "\u25BC"}
-                    </span>
-                  </div>
-                </button>
+                </Card>
 
-                {expandedSuspect === suspect.id && (
-                  <div className="mt-3 space-y-3 text-sm text-text-secondary">
-                    <div>
-                      <p className="mb-1 text-[10px] uppercase tracking-wider text-text-muted">
-                        Statement
-                      </p>
-                      <p className="italic border-l-2 border-accent/30 pl-3">
-                        &ldquo;{suspect.statement}&rdquo;
-                      </p>
-                    </div>
-                    {suspect.alibi && (
-                      <div>
-                        <p className="mb-1 text-[10px] uppercase tracking-wider text-text-muted">
-                          Alibi
-                        </p>
-                        <p className="border-l-2 border-gold/30 pl-3">
-                          {suspect.alibi}
-                        </p>
-                      </div>
-                    )}
-                    <div>
-                      <p className="mb-1 text-[10px] uppercase tracking-wider text-text-muted">
-                        Points of Interest
-                      </p>
-                      <ul className="list-inside list-disc space-y-0.5">
-                        {suspect.suspiciousDetails.map((detail, i) => (
-                          <li key={`${suspect.id}-detail-${i}`} className="text-xs">
-                            {detail}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="mb-1 text-[10px] uppercase tracking-wider text-text-muted">
-                        Detective Notes
-                      </p>
-                      <textarea
-                        value={notes[suspect.id] || ""}
-                        onChange={(e) =>
-                          handleNoteChange(suspect.id, e.target.value)
-                        }
-                        placeholder="Add your observations..."
-                        className="w-full rounded border border-border-dark bg-dark-700 px-2 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent/50 min-h-[50px] resize-none"
-                        style={{ fontSize: "16px" }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {activeTab === "evidence" && (
-          <div className="space-y-3">
-            <div className="flex gap-1 overflow-x-auto pb-1">
-              {evidenceCategories.map((cat) => (
-                <button
-                  key={cat.value}
-                  onClick={() => setEvidenceFilter(cat.value)}
-                  className={`shrink-0 rounded px-2.5 py-1 text-[10px] uppercase tracking-wider transition-colors ${
-                    evidenceFilter === cat.value
-                      ? "bg-accent text-white"
-                      : "bg-dark-700 text-text-muted hover:text-text-primary"
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-
-            {mystery.evidence
-              .filter(
-                (item) =>
-                  evidenceFilter === "all" || item.category === evidenceFilter
-              )
-              .map((item) => {
-                const isImportant = importantEvidence.includes(item.id);
-                const relatedSuspects = item.relatedSuspectIds
-                  .map((id) => mystery.suspects.find((s) => s.id === id))
-                  .filter(Boolean);
-
-                return (
-                  <Card
-                    key={item.id}
-                    className={
-                      isImportant ? "border-accent/40" : "border-border-dark"
-                    }
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-bold text-text-primary">
-                            {item.title}
-                          </h3>
-                          <span className="rounded bg-dark-600 px-1.5 py-0.5 text-[10px] text-text-muted uppercase">
-                            {item.category}
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleToggleEvidence(item.id)}
-                        className={`ml-2 text-sm ${
-                          isImportant
-                            ? "text-accent"
-                            : "text-text-muted hover:text-text-primary"
-                        }`}
-                        title={
-                          isImportant
-                            ? "Remove from important"
-                            : "Mark as important"
-                        }
-                      >
-                        {isImportant ? "\u2605" : "\u2606"}
-                      </button>
-                    </div>
-                    <p className="mt-2 text-sm leading-relaxed text-text-secondary">
-                      {item.description}
-                    </p>
-                    {relatedSuspects.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {relatedSuspects.map((s) => s && (
-                          <span
-                            key={s.id}
-                            className="rounded bg-dark-600 px-2 py-0.5 text-[10px] text-text-muted"
-                          >
-                            {s.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </Card>
-                );
-              })}
-          </div>
-        )}
-
-        {activeTab === "timeline" && mystery.timeline && (
-          <div className="space-y-2">
-            {mystery.timeline.map((event, i) => (
-              <div key={`timeline-${event.time}-${i}`} className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      event.relatedSuspectId ? "bg-accent" : "bg-dark-500"
-                    }`}
-                  />
-                  {i < (mystery.timeline?.length || 0) - 1 && (
-                    <div className="h-full w-px bg-border-dark" />
-                  )}
-                </div>
-                <div className="pb-4">
-                  <p className="text-xs font-bold text-gold">{event.time}</p>
-                  <p className="text-sm text-text-secondary">{event.event}</p>
-                  {event.relatedSuspectId && (
-                    <p className="text-[10px] text-accent">
-                      Related:{" "}
-                      {mystery.suspects.find(
-                        (s) => s.id === event.relatedSuspectId
-                      )?.name || "Unknown"}
-                    </p>
-                  )}
-                </div>
+                <Card title="Case progress">
+                  <dl className="grid grid-cols-3 gap-3 text-center">
+                    <Stat
+                      label="Elapsed"
+                      value={formatTimer(session.elapsedSeconds)}
+                    />
+                    <Stat
+                      label="Attempts"
+                      value={`${session.wrongAttempts}/${maxAttempts}`}
+                    />
+                    <Stat label="Hints" value={String(session.hintsUsed)} />
+                  </dl>
+                </Card>
               </div>
-            ))}
-          </div>
-        )}
+            )}
 
-        {activeTab === "solve" && !completed && (
-          <div className="space-y-4">
-            <Card className="border-accent/30">
-              <div className="text-center">
-                <div className="mb-2 text-2xl">\uD83D\uDD0D</div>
-                <h3 className="mb-1 text-sm font-bold uppercase tracking-wider text-accent">
-                  Ready to Solve the Case?
-                </h3>
-                <p className="mb-4 text-xs text-text-muted">
-                  Identify the murderer and their motive to complete this case
+            {completed && activeTab === "introduction" && (
+              <Card tone="gold" className="mt-3 text-center">
+                <Stamp tone="gold">Case Closed</Stamp>
+                <p className="mt-4 text-sm text-text-secondary">
+                  You solved this one. The file stays open for review.
                 </p>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <Button fullWidth onClick={() => setShowSolve(true)} className="min-h-[44px]">
-                  Submit Your Answer
-                </Button>
-                <Button
-                  variant="secondary"
-                  fullWidth
-                  onClick={() => { setShowDetective(true); }}
-                  className="min-h-[44px]"
-                >
-                  Ask the Detective
-                </Button>
                 <Button
                   variant="ghost"
                   fullWidth
-                  onClick={() => { setShowHint(true); }}
-                  className="min-h-[44px]"
+                  className="mt-3"
+                  onClick={() => router.push("/leaderboard")}
                 >
-                  Request a Hint
+                  View leaderboard
                 </Button>
-              </div>
-            </Card>
-
-            <Card className="text-center">
-              <p className="text-[10px] uppercase tracking-wider text-text-muted">
-                Case Progress
-              </p>
-              <div className="mt-2 flex items-center justify-center gap-4 text-xs">
-                <div>
-                  <span className="text-text-muted">Attempts: </span>
-                  <span className="text-text-primary">
-                    {session.wrongAttempts}/{maxAttempts}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-text-muted">Time: </span>
-                  <span className="text-text-primary">
-                    {formatTimer(session.elapsedSeconds)}
-                  </span>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            )}
           </div>
-        )}
+        </main>
 
-        {completed && (
-          <div className="space-y-4">
-            <Card className="border-gold/30 bg-gold/5 text-center">
-              <div className="mb-1 text-2xl">&#x1F3C6;</div>
-              <p className="text-sm font-bold text-gold">Case Completed</p>
-              <p className="mt-1 text-xs text-text-secondary">
-                You solved this mystery. Review evidence or proceed to the leaderboard.
-              </p>
-            </Card>
-            <Button variant="ghost" fullWidth onClick={() => router.push("/leaderboard")}>
-              View Leaderboard
+        <div className="safe-bottom z-10 shrink-0 border-t border-border-dark bg-ink-900 px-3 py-2">
+          <div className="mx-auto flex w-full max-w-2xl gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              fullWidth
+              onClick={() => setShowDetective(true)}
+            >
+              Detective
             </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              fullWidth
+              onClick={() => setShowHint(true)}
+            >
+              Hint
+            </Button>
+            {!completed && (
+              <Button size="sm" fullWidth onClick={() => setShowSolve(true)}>
+                Solve
+              </Button>
+            )}
           </div>
-        )}
-      </main>
+        </div>
 
-      <div className="sticky bottom-0 z-10 flex gap-2 border-t border-border-dark bg-dark-900/95 px-3 py-2 pb-[env(safe-area-inset-bottom,8px)]">
-        <Button
-          size="sm"
-          variant="secondary"
-          fullWidth
-          onClick={() => setShowDetective(true)}
-          className="min-h-[44px]"
-        >
-          Detective
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          fullWidth
-          onClick={() => setShowHint(true)}
-          className="min-h-[44px]"
-        >
-          Hint
-        </Button>
-        {!completed && (
-          <Button
-            size="sm"
-            fullWidth
-            onClick={() => setShowSolve(true)}
-            className="min-h-[44px]"
-          >
-            Solve
-          </Button>
+        {showSolve && (
+          <SolveCase
+            mystery={mystery}
+            elapsedSeconds={session.elapsedSeconds}
+            wrongAttempts={session.wrongAttempts}
+            hintsUsed={session.hintsUsed}
+            maxAttempts={maxAttempts}
+            scoring={scoring}
+            onComplete={handleComplete}
+            onFail={handleFail}
+            onWrongAttempt={session.recordWrongAttempt}
+            onClose={() => setShowSolve(false)}
+          />
+        )}
+
+        {showHint && (
+          <HintPanel
+            mystery={mystery}
+            hintsUsed={session.hintsUsed}
+            onHintUsed={session.recordHint}
+            onClose={() => setShowHint(false)}
+          />
+        )}
+
+        {showDetective && (
+          <DetectiveChat
+            mystery={mystery}
+            onClose={() => setShowDetective(false)}
+          />
         )}
       </div>
-
-      {showSolve && mystery && (
-        <SolveCase
-          mystery={mystery}
-          elapsedSeconds={session.elapsedSeconds}
-          wrongAttempts={session.wrongAttempts}
-          hintsUsed={session.hintsUsed}
-          maxAttempts={maxAttempts}
-          onComplete={handleComplete}
-          onFail={handleFail}
-          onWrongAttempt={session.recordWrongAttempt}
-          onClose={() => setShowSolve(false)}
-        />
-      )}
-
-      {showHint && mystery && (
-        <HintPanel
-          mystery={mystery}
-          hintsUsed={session.hintsUsed}
-          onHintUsed={handleHintUsed}
-          onClose={() => setShowHint(false)}
-        />
-      )}
-
-      {showDetective && mystery && (
-        <DetectiveChat
-          mystery={mystery}
-          onClose={() => setShowDetective(false)}
-        />
-      )}
-    </div>
     </ErrorBoundary>
   );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="font-display text-[11px] uppercase tracking-[0.15em] text-text-muted">
+        {label}
+      </dt>
+      <dd className="mt-1 font-mono text-lg tabular-nums text-text-primary">
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function formatTimer(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes.toString().padStart(2, "0")}:${seconds
+    .toString()
+    .padStart(2, "0")}`;
 }

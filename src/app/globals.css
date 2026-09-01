@@ -1,49 +1,115 @@
 @import "tailwindcss";
 
+/* ============================================================
+   The Case File — design tokens
+   A detective dossier: ink-black desk, manila paper, red stamp ink.
+   ============================================================ */
+
 @theme {
-  --color-dark-900: #0a0a0a;
-  --color-dark-800: #111111;
-  --color-dark-700: #1a1a1a;
-  --color-dark-600: #222222;
-  --color-dark-500: #333333;
-  --color-accent: #c41e3a;
-  --color-accent-light: #e63950;
-  --color-gold: #d4a843;
-  --color-gold-light: #e8c56a;
-  --color-text-primary: #e0e0e0;
-  --color-text-secondary: #a0a0a0;
-  --color-text-muted: #666666;
-  --color-border-dark: #2a2a2a;
-  --color-success: #2d8a4e;
-  --color-warning: #b8860b;
-  --color-error: #c41e3a;
-  --font-mono: "Courier New", monospace;
-  --font-body: Georgia, "Times New Roman", serif;
+  /* Surfaces — the desk and the folders on it */
+  --color-ink-900: #0b0b0c;
+  --color-ink-800: #121214;
+  --color-ink-700: #191a1d;
+  --color-ink-600: #212226;
+  --color-ink-500: #2c2e33;
+  --color-ink-400: #3a3d44;
+
+  /* Manila — the case file itself. Used sparingly, as paper. */
+  --color-paper: #e8e2d4;
+  --color-paper-dim: #c9c2b2;
+
+  /* Stamp ink — the brand */
+  --color-accent: #c8203c;
+  --color-accent-light: #e6394f;
+  --color-accent-dark: #8f112a;
+
+  /* Evidence gold — scores, marked clues */
+  --color-gold: #d9ae4a;
+  --color-gold-light: #ecc871;
+
+  /* Text — warm off-white, all AA-compliant on ink-900 */
+  --color-text-primary: #edeae3;
+  --color-text-secondary: #a8a49b;
+  --color-text-muted: #8a867e;
+
+  --color-border-dark: #26272b;
+  --color-border-mid: #34363c;
+
+  /* Status — deliberately NOT the brand red, so failure reads as failure */
+  --color-success: #3fb96b;
+  --color-warning: #e0a32e;
+  --color-error: #ff6b5b;
+
+  /* Type roles. The font-* vars are injected by next/font in layout.tsx. */
+  --font-display: var(--font-special-elite), "Courier New", monospace;
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "Courier New", monospace;
+
+  --radius-card: 0.5rem;
+
+  --shadow-sheet: 0 -12px 40px rgba(0, 0, 0, 0.6);
+  --shadow-lift: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background-color: var(--color-dark-900);
+  min-height: 100dvh;
+  background-color: var(--color-ink-900);
   color: var(--color-text-primary);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {
   background-color: var(--color-accent);
-  color: white;
+  color: #fff;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Every interactive element gets a visible keyboard ring. The tap-highlight
+   removal above means touch users rely on :active states, defined per
+   component. */
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* iOS zooms the viewport when a focused field is under 16px. Cover every
+   field type rather than the three that happened to carry a type attribute. */
+input,
+textarea,
+select {
+  font-size: 16px;
 }
 
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-dark-900);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-dark-500);
+  background: var(--color-ink-500);
   border-radius: 3px;
 }
 
@@ -51,51 +117,147 @@ body {
   background: var(--color-accent);
 }
 
-button, a, input, textarea, select {
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
+/* ============================================================
+   Utilities
+   ============================================================ */
+
+/* Safe-area helpers. The body deliberately carries no inset padding —
+   applying it there alongside a full-height rule produces phantom scroll. */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
 }
 
-.game-content {
-  overscroll-behavior: none;
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-.bottom-sheet {
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+.scroll-region {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
-@media (max-width: 640px) {
-  .tab-btn {
-    min-height: 36px;
+/* Fibrous paper grain, for the manila elements only. */
+.paper-grain {
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.025) 0 1px,
+      transparent 1px 3px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.02) 0 1px,
+      transparent 1px 4px
+    );
+}
+
+/* The signature element: a rubber stamp pressed onto the page. */
+.stamp {
+  font-family: var(--font-display);
+  letter-spacing: 0.12em;
+  border: 3px solid currentColor;
+  border-radius: 4px;
+  padding: 0.4rem 1rem;
+  text-transform: uppercase;
+  opacity: 0.92;
+  /* Rough the edges so it reads as ink on paper, not a rounded rectangle. */
+  mask-image: radial-gradient(
+    ellipse at 30% 40%,
+    #000 55%,
+    rgba(0, 0, 0, 0.82) 72%,
+    rgba(0, 0, 0, 0.95) 100%
+  );
+}
+
+/* Faint horizontal rules, like a typed report. */
+.file-rule {
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(100% - 1px),
+    var(--color-border-dark) calc(100% - 1px)
+  );
+}
+
+/* ============================================================
+   Motion
+   ============================================================ */
+
+@keyframes stamp-slam {
+  0% {
+    opacity: 0;
+    transform: scale(2.6) rotate(-24deg);
   }
-
-  input[type="text"],
-  input[type="password"],
-  textarea {
-    font-size: 16px !important;
+  55% {
+    opacity: 1;
+    transform: scale(0.94) rotate(-11deg);
+  }
+  70% {
+    transform: scale(1.04) rotate(-13deg);
+  }
+  100% {
+    opacity: 0.92;
+    transform: scale(1) rotate(-12deg);
   }
 }
 
-body.sheet-open {
-  overflow: hidden;
-  position: fixed;
-  width: 100%;
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-stamp {
+  animation: stamp-slam 620ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.animate-rise {
+  animation: rise-in 380ms ease-out both;
+}
+
+.animate-sheet {
+  animation: sheet-up 260ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.animate-fade {
+  animation: fade-in 200ms ease-out both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
-}
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  /* The stamp still needs its final resting angle when motion is off. */
+  .animate-stamp {
+    opacity: 0.92;
+    transform: rotate(-12deg);
+  }
 }

@@ -1,151 +1,172 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TrophyIcon } from "@/components/ui/icons";
+import { cn } from "@/lib/cn";
+import type { LeaderboardEntry } from "@/types";
 
-interface Entry {
-  rank: number;
-  teamName: string;
-  totalScore: number;
-  mysteriesCompleted: number;
-  totalTime: number;
-  hintsUsed: number;
-  wrongAttempts: number;
-}
+const REFRESH_MS = 60_000;
 
 export default function LeaderboardPage() {
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [lastUpdated, setLastUpdated] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [eventCode, setEventCode] = useState(typeof window !== "undefined" ? (process.env.NEXT_PUBLIC_DEFAULT_EVENT_CODE || "") : "");
-  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const eventCode = process.env.NEXT_PUBLIC_DEFAULT_EVENT_CODE || "";
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadData = useCallback(async () => {
-    setLoading(true);
+    setRefreshing(true);
     setError("");
     try {
-      const res = await fetch(`/api/leaderboard?eventId=${encodeURIComponent(eventCode)}`);
-      if (!res.ok) throw new Error("Failed to load leaderboard");
+      const res = await fetch(
+        `/api/leaderboard?eventCode=${encodeURIComponent(eventCode)}`
+      );
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load leaderboard");
       setEntries(data.leaderboard || []);
       setLastUpdated(data.lastUpdated);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load leaderboard data");
+      setError(
+        err instanceof Error ? err.message : "Could not load the leaderboard."
+      );
     } finally {
-      setLoading(false);
+      setRefreshing(false);
+      setInitialLoad(false);
     }
   }, [eventCode]);
 
   useEffect(() => {
-    loadData();
-    autoRefreshRef.current = setInterval(loadData, 60000);
+    void loadData();
+    timerRef.current = setInterval(() => void loadData(), REFRESH_MS);
     return () => {
-      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [loadData]);
 
   function exportCSV() {
-    const header = "Rank,Team,Score,Mysteries Completed,Total Time (s),Hints Used,Wrong Attempts";
+    const header =
+      "Rank,Team,Score,Mysteries Completed,Total Time (s),Hints Used,Wrong Attempts";
     const rows = entries.map(
-      (e) => `${e.rank},"${e.teamName}",${e.totalScore},${e.mysteriesCompleted},${e.totalTime},${e.hintsUsed},${e.wrongAttempts}`
+      (e) =>
+        `${e.rank},"${e.teamName}",${e.totalScore},${e.mysteriesCompleted},${e.totalTime},${e.hintsUsed},${e.wrongAttempts}`
     );
-    const csv = [header, ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
+    const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `leaderboard-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `leaderboard-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
     URL.revokeObjectURL(url);
   }
 
-  function formatTime(seconds: number) {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  }
-
   return (
-    <div className="flex min-h-screen flex-col items-center px-4 py-8">
-      <div className="w-full max-w-lg">
-        <h1 className="mb-6 text-center text-lg font-bold uppercase tracking-wider text-accent">
-          Leaderboard
-        </h1>
+    <div className="safe-top safe-bottom flex min-h-dvh flex-col items-center px-4 py-10">
+      <div className="w-full max-w-2xl">
+        <header className="mb-6 text-center">
+          <h1 className="font-display text-2xl uppercase tracking-[0.15em] text-accent">
+            Standings
+          </h1>
+          {eventCode && (
+            <p className="mt-1 font-mono text-xs uppercase tracking-[0.2em] text-text-muted">
+              {eventCode}
+            </p>
+          )}
+        </header>
 
         {error && (
-          <Card className="mb-4 border-error/30 bg-error/5 p-3 text-center">
-            <p className="text-xs text-error">{error}</p>
+          <Card tone="error" className="mb-4 text-center">
+            <p className="text-sm text-error">{error}</p>
           </Card>
         )}
 
-        {loading && entries.length === 0 ? (
-          <Card className="p-6 text-center">
-            <p className="text-sm text-text-muted">Loading...</p>
-          </Card>
-        ) : entries.length === 0 ? (
-          <Card className="p-6 text-center">
-            <div className="mb-2 text-2xl">🏆</div>
-            <p className="text-sm text-text-muted">
-              No scores yet. Complete a case to appear on the leaderboard.
-            </p>
-          </Card>
-        ) : (
+        {initialLoad ? (
           <div className="space-y-2">
-            {entries.map((entry) => (
-              <Card
-                key={entry.teamName + entry.rank}
-                className={
-                  entry.rank <= 3
-                    ? "border-gold/30"
-                    : "border-border-dark"
-                }
-              >
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Card key={index}>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-dark-700 text-xs font-bold text-text-secondary">
-                    {entry.rank === 1
-                      ? "🥇"
-                      : entry.rank === 2
-                      ? "🥈"
-                      : entry.rank === 3
-                      ? "🥉"
-                      : `#${entry.rank}`}
+                  <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-3 w-1/2" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-text-primary truncate">
-                      {entry.teamName}
-                    </p>
-                    <p className="text-[10px] text-text-muted">
-                      {entry.mysteriesCompleted} case
-                      {entry.mysteriesCompleted !== 1 ? "s" : ""} completed
-                      {" · "}
-                      {formatTime(entry.totalTime)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-gold">
-                      {entry.totalScore}
-                    </p>
-                    <p className="text-[10px] text-text-muted">
-                      {entry.hintsUsed} hints ·{" "}
-                      {entry.wrongAttempts} wrong
-                    </p>
-                  </div>
+                  <Skeleton className="h-6 w-14" />
                 </div>
               </Card>
             ))}
           </div>
+        ) : entries.length === 0 ? (
+          <Card className="py-10 text-center">
+            <TrophyIcon className="mx-auto h-8 w-8 text-text-muted" />
+            <p className="mt-3 text-sm text-text-secondary">
+              No cases closed yet. Solve one and this board fills up.
+            </p>
+          </Card>
+        ) : (
+          <ol className="space-y-2">
+            {entries.map((entry) => (
+              <li key={`${entry.teamName}-${entry.rank}`}>
+                <Card tone={entry.rank <= 3 ? "gold" : "default"}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <span
+                        className={cn(
+                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                          "font-mono text-sm font-semibold tabular-nums",
+                          entry.rank <= 3
+                            ? "bg-gold/20 text-gold"
+                            : "bg-ink-700 text-text-secondary"
+                        )}
+                      >
+                        {entry.rank}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate font-display text-base text-text-primary">
+                          {entry.teamName}
+                        </p>
+                        <p className="font-mono text-xs text-text-muted">
+                          {entry.mysteriesCompleted} case
+                          {entry.mysteriesCompleted === 1 ? "" : "s"} ·{" "}
+                          {formatTime(entry.totalTime)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 sm:justify-end">
+                      <div className="flex gap-1.5">
+                        <Badge>{entry.hintsUsed} hints</Badge>
+                        <Badge>{entry.wrongAttempts} wrong</Badge>
+                      </div>
+                      <p className="font-mono text-xl font-semibold tabular-nums text-gold">
+                        {entry.totalScore}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </li>
+            ))}
+          </ol>
         )}
 
         {lastUpdated && (
-          <p className="mt-4 text-center text-[10px] text-text-muted">
-            Last updated: {new Date(lastUpdated).toLocaleTimeString()}
+          <p className="mt-4 text-center font-mono text-xs text-text-muted">
+            Updated {new Date(lastUpdated).toLocaleTimeString()}
           </p>
         )}
 
-        <div className="mt-6 flex justify-center gap-4 flex-wrap">
-          <Button variant="ghost" size="sm" onClick={loadData}>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void loadData()}
+            loading={refreshing}
+          >
             Refresh
           </Button>
           {entries.length > 0 && (
@@ -153,14 +174,22 @@ export default function LeaderboardPage() {
               Export CSV
             </Button>
           )}
-          <a
+          <Link
             href="/"
-            className="text-xs uppercase tracking-wider text-text-muted hover:text-gold transition-colors"
+            className="flex min-h-11 items-center px-3 font-display text-xs uppercase tracking-[0.15em] text-text-muted transition-colors hover:text-gold"
           >
-            Back to Home
-          </a>
+            Home
+          </Link>
         </div>
       </div>
     </div>
   );
+}
+
+function formatTime(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `${minutes.toString().padStart(2, "0")}:${rest
+    .toString()
+    .padStart(2, "0")}`;
 }

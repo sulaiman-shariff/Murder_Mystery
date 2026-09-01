@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateMurderer } from "@/lib/ai/client";
 import { getMysteryById } from "@/data/mystery-index";
+import { getSolutionById } from "@/data/solutions";
 import { logAiInteraction } from "@/lib/database/ai-log";
 import { checkRateLimit } from "@/lib/rate-limit";
 import type { SuspectRecord } from "@/types";
@@ -29,7 +30,8 @@ export async function POST(request: NextRequest) {
     }
 
     const mystery = getMysteryById(mysteryId);
-    if (!mystery) {
+    const solution = getSolutionById(mysteryId);
+    if (!mystery || !solution) {
       return NextResponse.json(
         { error: "Mystery not found" },
         { status: 404 }
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest) {
       id: s.id,
       name: s.name,
       role: s.role,
-      aliases: mystery.solution.murdererAliases.filter(
+      aliases: solution.murdererAliases.filter(
         (a) => a.toLowerCase().includes(s.name.toLowerCase()) ||
           s.name.toLowerCase().includes(a.toLowerCase())
       ),
@@ -48,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     const result = await validateMurderer({
       guess,
-      correctMurderer: mystery.solution.murderer,
+      correctMurderer: solution.murderer,
       suspects,
     });
 

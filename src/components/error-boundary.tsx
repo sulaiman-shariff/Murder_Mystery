@@ -3,6 +3,7 @@
 import { Component, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { AlertIcon } from "@/components/ui/icons";
 
 interface Props {
   children: ReactNode;
@@ -24,17 +25,24 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
+  componentDidCatch(error: Error) {
+    console.error("Unhandled UI error:", error);
+  }
+
   render() {
-    if (this.state.hasError) {
-      return this.props.fallback || (
-        <div className="flex min-h-screen items-center justify-center px-4">
-          <Card className="w-full max-w-sm p-6 text-center">
-            <div className="mb-2 text-2xl">⚠</div>
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wider text-accent">
-              Something went wrong
+    if (!this.state.hasError) return this.props.children;
+
+    return (
+      this.props.fallback || (
+        <div className="flex min-h-dvh items-center justify-center px-4">
+          <Card tone="error" className="w-full max-w-sm text-center">
+            <AlertIcon className="mx-auto h-7 w-7 text-error" />
+            <h2 className="mt-3 font-display text-sm uppercase tracking-[0.15em] text-error">
+              Something broke
             </h2>
-            <p className="mb-4 text-xs text-text-muted">
-              {this.state.error?.message || "An unexpected error occurred"}
+            <p className="mb-4 mt-2 text-sm text-text-secondary">
+              {this.state.error?.message ||
+                "The page hit an unexpected error."}
             </p>
             <Button
               fullWidth
@@ -43,13 +51,11 @@ export class ErrorBoundary extends Component<Props, State> {
                 window.location.reload();
               }}
             >
-              Reload Page
+              Reload the page
             </Button>
           </Card>
         </div>
-      );
-    }
-
-    return this.props.children;
+      )
+    );
   }
 }

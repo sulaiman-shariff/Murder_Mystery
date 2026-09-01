@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server-admin";
 import { requireAdmin } from "@/lib/auth/admin";
+import { getEventIdByCode } from "@/lib/database/events";
 import type { LeaderboardEntry } from "@/types";
 
 export async function GET(request: NextRequest) {
@@ -16,13 +17,9 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("id")
-    .eq("event_code", eventCode)
-    .single();
+  const eventId = await getEventIdByCode(supabase, eventCode);
 
-  if (!event) {
+  if (!eventId) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
@@ -33,7 +30,7 @@ export async function GET(request: NextRequest) {
       status, started_at, completed_at, mystery_id,
       team:team_id(name)
     `)
-    .eq("event_id", event.id)
+    .eq("event_id", eventId)
     .neq("status", "not_started")
     .order("score", { ascending: false });
 

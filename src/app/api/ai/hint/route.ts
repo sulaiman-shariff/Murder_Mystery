@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateHint } from "@/lib/ai/client";
 import { getMysteryById } from "@/data/mystery-index";
+import { getHintLevel } from "@/data/solutions";
 import { logAiInteraction } from "@/lib/database/ai-log";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const hintLevel = mystery.hintPlan.find((h) => h.level === level);
+    const hintLevel = getHintLevel(mysteryId, level);
     if (!hintLevel) {
       return NextResponse.json({
         success: false,

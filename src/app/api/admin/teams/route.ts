@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server-admin";
 import { requireAdmin } from "@/lib/auth/admin";
+import { getEventIdByCode } from "@/lib/database/events";
 
 export async function GET(request: NextRequest) {
   const authError = requireAdmin(request);
@@ -15,20 +16,16 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("id")
-    .eq("event_code", eventCode)
-    .single();
+  const eventId = await getEventIdByCode(supabase, eventCode);
 
-  if (!event) {
+  if (!eventId) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
   const { data: teams, error } = await supabase
     .from("teams")
     .select("id, name, pin, eventId:event_id, createdAt:created_at, lastActiveAt:last_active_at")
-    .eq("event_id", event.id)
+    .eq("event_id", eventId)
     .order("created_at", { ascending: false });
 
   if (error) {

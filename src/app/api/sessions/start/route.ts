@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server-admin";
+import { getEventScoring } from "@/lib/database/events";
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +23,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     const maxAttempts = event?.max_attempts || 10;
+    // Sent to the client so the solve panel can preview a score using the
+    // same rules the server will apply on completion.
+    const scoring = await getEventScoring(supabase, eventId);
 
     const now = new Date().toISOString();
 
@@ -48,7 +52,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (updated) {
-        return NextResponse.json({ session: sessionRowToResponse(updated), maxAttempts });
+        return NextResponse.json({ session: sessionRowToResponse(updated), maxAttempts, scoring });
       }
     }
 
@@ -67,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ session: sessionRowToResponse(newSession), maxAttempts });
+    return NextResponse.json({ session: sessionRowToResponse(newSession), maxAttempts, scoring });
   } catch (err) {
     console.error("Session start error:", err);
     return NextResponse.json(

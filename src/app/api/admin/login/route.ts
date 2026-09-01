@@ -1,32 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminCookieValue, COOKIE_NAME } from "@/lib/auth/admin";
+import {
+  createAdminCookieValue,
+  isValidPasscode,
+  COOKIE_NAME,
+  SESSION_TTL_SECONDS,
+} from "@/lib/auth/admin";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
-  const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE;
-
-  if (!ADMIN_PASSCODE) {
+  if (!process.env.ADMIN_PASSCODE) {
     return NextResponse.json(
       { error: "Admin authentication not configured" },
       { status: 500 }
     );
   }
 
-  const body = await request.json();
-  const { passcode } = body;
+  const ip =
+    request.headers.get("x-forwarded-for") ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  const limitCheck = checkRateLimit(`admin-login:${ip}`);
+  if (limitCheck) return limitCheck;
 
-  if (passcode !== ADMIN_PASSCODE) {
+  let passcode: unknown;
+  try {
+    ({ passcode } = await request.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+
+  if (!isValidPasscode(passcode)) {
     return NextResponse.json({ error: "Invalid passcode" }, { status: 401 });
   }
 
-  const cookieValue = createAdminCookieValue(passcode);
   const response = NextResponse.json({ success: true });
 
-  response.cookies.set(COOKIE_NAME, cookieValue, {
+  response.cookies.set(COOKIE_NAME, createAdminCookieValue(), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 2 * 60 * 60,
+    maxAge: SESSION_TTL_SECONDS,
   });
 
   return response;

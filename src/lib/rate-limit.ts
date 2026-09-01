@@ -1,5 +1,15 @@
 import { NextResponse } from "next/server";
 
+/**
+ * Best-effort, per-instance rate limiting.
+ *
+ * On Vercel each function instance keeps its own Map, so the real ceiling is
+ * (instances x MAX_REQUESTS) rather than MAX_REQUESTS. That is good enough to
+ * blunt a stuck retry loop or one team hammering the AI routes during an
+ * event. If it ever needs to be a true global limit, back this with Upstash
+ * Redis (Vercel Marketplace) and keep the same checkRateLimit signature.
+ */
+
 const store = new Map<string, { count: number; reset: number }>();
 
 const WINDOW_MS = 60_000;

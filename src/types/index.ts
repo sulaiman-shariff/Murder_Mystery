@@ -78,8 +78,12 @@ export interface Mystery {
   suspects: Suspect[];
   evidence: Evidence[];
   timeline?: TimelineEvent[];
-  solution: MysterySolution;
-  hintPlan: HintLevel[];
+  /**
+   * How many hint levels this mystery has. The hints themselves are spoilers
+   * and live server-side in src/data/solutions.ts; the client only needs the
+   * count to know whether more hints remain.
+   */
+  hintCount: number;
 }
 
 // ── Game session types ──
@@ -253,4 +257,51 @@ export interface LeaderboardEntry {
   mysteriesCompleted: number;
   hintsUsed: number;
   wrongAttempts: number;
+}
+
+// ── Admin API shapes ──
+// What the /api/admin/* routes actually return, so the admin UI does not
+// have to redeclare them locally.
+
+export interface AdminSessionInfo {
+  mysteryId: string;
+  status: SessionStatus;
+  wrongAttempts: number;
+  hintsUsed: number;
+  score: number;
+  elapsedSeconds: number;
+  startedAt: string;
+  completedAt: string | null;
+  lastSavedAt: string;
+}
+
+export interface AdminTeam {
+  id: string;
+  name: string;
+  pin: string;
+  eventId: string;
+  createdAt: string;
+  lastActiveAt: string;
+  sessions: AdminSessionInfo[];
+}
+
+export interface AdminEvent {
+  id: string;
+  name: string;
+  eventCode: string;
+  status: EventStatus;
+  createdAt: string;
+  scoringSettings: Partial<ScoringSettings> | null;
+  currentMysteryLimit: number;
+  maxAttempts: number;
+}
+
+/** Rows come back in the database's snake_case, unlike the other endpoints. */
+export interface AdminAiLog {
+  id: string;
+  session_id: string;
+  type: AiInteractionType;
+  player_input: string;
+  ai_output: string;
+  created_at: string;
 }

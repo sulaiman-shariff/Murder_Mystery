@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server-admin";
+import { getEventIdByCode } from "@/lib/database/events";
 import type { Team } from "@/types";
 
 export async function registerTeam(
@@ -8,20 +9,15 @@ export async function registerTeam(
 ): Promise<Team> {
   const supabase = createAdminClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("id")
-    .eq("event_code", eventCode)
-    .single();
-
-  if (!event) {
+  const eventId = await getEventIdByCode(supabase, eventCode);
+  if (!eventId) {
     throw new Error("Event not found");
   }
 
   const { data: existing } = await supabase
     .from("teams")
     .select("id")
-    .eq("event_id", event.id)
+    .eq("event_id", eventId)
     .eq("name", name)
     .maybeSingle();
 
@@ -32,7 +28,7 @@ export async function registerTeam(
   const { data: team, error } = await supabase
     .from("teams")
     .insert({
-      event_id: event.id,
+      event_id: eventId,
       name,
       pin,
     })
@@ -50,20 +46,15 @@ export async function loginTeam(
 ): Promise<{ team: Team; eventId: string }> {
   const supabase = createAdminClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("id")
-    .eq("event_code", eventCode)
-    .single();
-
-  if (!event) {
+  const eventId = await getEventIdByCode(supabase, eventCode);
+  if (!eventId) {
     throw new Error("Event not found");
   }
 
   const { data: team, error } = await supabase
     .from("teams")
     .select("id, eventId:event_id, name, pin, createdAt:created_at, lastActiveAt:last_active_at")
-    .eq("event_id", event.id)
+    .eq("event_id", eventId)
     .eq("name", name)
     .eq("pin", pin)
     .single();
@@ -77,7 +68,7 @@ export async function loginTeam(
     .update({ last_active_at: new Date().toISOString() })
     .eq("id", team.id);
 
-  return { team, eventId: event.id };
+  return { team, eventId };
 }
 
 export async function checkTeamNameAvailable(
@@ -86,18 +77,13 @@ export async function checkTeamNameAvailable(
 ): Promise<boolean> {
   const supabase = createAdminClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("id")
-    .eq("event_code", eventCode)
-    .single();
-
-  if (!event) return false;
+  const eventId = await getEventIdByCode(supabase, eventCode);
+  if (!eventId) return false;
 
   const { data: existing } = await supabase
     .from("teams")
     .select("id")
-    .eq("event_id", event.id)
+    .eq("event_id", eventId)
     .eq("name", name)
     .maybeSingle();
 

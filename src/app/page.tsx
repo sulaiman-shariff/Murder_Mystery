@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Stamp } from "@/components/ui/stamp";
+import { MagnifierIcon } from "@/components/ui/icons";
 import {
   saveTeam,
   getTeam,
@@ -11,8 +13,32 @@ import {
   getCompletedMysteries,
 } from "@/lib/storage/local";
 import { getMysteryByOrder } from "@/data/mystery-index";
+import { cn } from "@/lib/cn";
 
 type TabMode = "login" | "register";
+
+const HOW_TO_PLAY = [
+  {
+    title: "Read the file",
+    body: "Start with the case summary and the victim, then work through the story sections.",
+  },
+  {
+    title: "Examine the evidence",
+    body: "Mark anything that matters with the star. Marked evidence stays flagged across the case.",
+  },
+  {
+    title: "Interview the suspects",
+    body: "Compare statements against alibis and keep notes on each one as you go.",
+  },
+  {
+    title: "Consult the detective",
+    body: "Ask questions any time. Request a hint when you are stuck — hints cost points.",
+  },
+  {
+    title: "Name the killer",
+    body: "Submit the murderer and their motive together. Both must be right to close the case.",
+  },
+];
 
 export default function HomePage() {
   const [mode, setMode] = useState<TabMode>("login");
@@ -21,33 +47,36 @@ export default function HomePage() {
   const [eventCode, setEventCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [hasSession, setHasSession] = useState(false);
-  const [savedTeamName, setSavedTeamName] = useState("");
+  const [savedTeamName, setSavedTeamName] = useState<string | null>(null);
   const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [nameAvailable, setNameAvailable] = useState<boolean | null>(null);
   const [checkingName, setCheckingName] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const team = getTeam();
     if (team) {
-      setHasSession(true);
       setSavedTeamName(team.name);
       setTeamName(team.name);
       setEventCode(team.eventCode);
     } else {
       setEventCode(process.env.NEXT_PUBLIC_DEFAULT_EVENT_CODE || "");
     }
+    setHydrated(true);
   }, []);
 
   useEffect(() => {
     if (mode !== "register" || !teamName.trim() || !eventCode.trim()) {
       setNameAvailable(null);
+      setCheckingName(false);
       return;
     }
     setCheckingName(true);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/teams/check?name=${encodeURIComponent(teamName)}&eventCode=${encodeURIComponent(eventCode)}`);
+        const res = await fetch(
+          `/api/teams/check?name=${encodeURIComponent(teamName)}&eventCode=${encodeURIComponent(eventCode)}`
+        );
         const data = await res.json();
         setNameAvailable(data.available);
       } catch {
@@ -64,7 +93,8 @@ export default function HomePage() {
     setLoading(true);
 
     try {
-      const endpoint = mode === "register" ? "/api/teams/register" : "/api/teams/login";
+      const endpoint =
+        mode === "register" ? "/api/teams/register" : "/api/teams/login";
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,10 +102,7 @@ export default function HomePage() {
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Request failed");
-      }
+      if (!res.ok) throw new Error(data.error || "Request failed");
 
       saveTeam({
         id: data.team.id,
@@ -88,123 +115,155 @@ export default function HomePage() {
       window.location.href = `/play/${data.nextMysteryId || "gilded-rose-mansion"}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
       setLoading(false);
     }
   }
 
   function handleContinue() {
     const team = getTeam();
-    if (team) {
-      const completed = getCompletedMysteries();
-      const completedCount = Object.keys(completed).length;
-      const nextOrder = completedCount + 1;
-      const nextMystery = getMysteryByOrder(nextOrder);
-      window.location.href = nextMystery
-        ? `/play/${nextMystery.id}`
-        : "/play/gilded-rose-mansion";
-    }
+    if (!team) return;
+    const completedCount = Object.keys(getCompletedMysteries()).length;
+    const nextMystery = getMysteryByOrder(completedCount + 1);
+    window.location.href = nextMystery
+      ? `/play/${nextMystery.id}`
+      : "/play/gilded-rose-mansion";
   }
 
   function handleLogout() {
     clearTeam();
-    setHasSession(false);
-    setSavedTeamName("");
+    setSavedTeamName(null);
     setTeamName("");
     setPin("");
+    setEventCode(process.env.NEXT_PUBLIC_DEFAULT_EVENT_CODE || "");
   }
 
+  const nameHint =
+    mode === "register" && teamName.trim()
+      ? checkingName
+        ? "Checking availability…"
+        : nameAvailable === true
+          ? "That name is free."
+          : nameAvailable === false
+            ? "Another team already took that name."
+            : " "
+      : " ";
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-8">
+    <div className="safe-top safe-bottom flex min-h-dvh flex-col items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <div className="mb-2 text-4xl">🔍</div>
-          <h1 className="text-2xl font-bold tracking-wider text-accent">
-            MURDER
-            <br />
-            MYSTERY
-          </h1>
-          <p className="mt-2 text-xs uppercase tracking-[0.2em] text-text-muted">
-            The Detective&apos;s Challenge
-          </p>
-        </div>
-
-        {hasSession && (
-          <Card className="mb-4 border-accent/30">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-text-muted">Active Session</p>
-                <p className="text-sm font-bold text-text-primary">
-                  {savedTeamName}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleContinue}>
-                  Continue
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleLogout}
-                >
-                  Logout
-                </Button>
-              </div>
+        {/* The file cover: the most characteristic object in this world. */}
+        <div className="paper-grain relative mb-8 overflow-hidden rounded-card border border-paper-dim/30 bg-paper px-5 pb-6 pt-5 shadow-lift">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-ink-700/70">
+                Case File
+              </p>
+              <h1 className="mt-1 font-display text-3xl leading-[1.05] tracking-tight text-ink-900">
+                MURDER
+                <br />
+                MYSTERY
+              </h1>
             </div>
-          </Card>
-        )}
-
-        <Card>
-          <div className="mb-4 flex rounded border border-border-dark">
-            <button
-              className={`flex-1 py-2 text-center text-sm font-medium transition-colors ${
-                mode === "login"
-                  ? "bg-accent text-white"
-                  : "bg-dark-800 text-text-secondary hover:text-text-primary"
-              }`}
-              onClick={() => setMode("login")}
-            >
-              Sign In
-            </button>
-            <button
-              className={`flex-1 py-2 text-center text-sm font-medium transition-colors ${
-                mode === "register"
-                  ? "bg-accent text-white"
-                  : "bg-dark-800 text-text-secondary hover:text-text-primary"
-              }`}
-              onClick={() => setMode("register")}
-            >
-              New Team
-            </button>
+            <MagnifierIcon className="mt-1 h-7 w-7 shrink-0 text-ink-900/45" />
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="mt-5 flex items-end justify-between gap-3 border-t border-ink-900/15 pt-3">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-700/70">
+              Three cases
+              <br />
+              One culprit each
+            </p>
+            <Stamp tone="accent" className="mb-1 text-[11px]">
+              Confidential
+            </Stamp>
+          </div>
+        </div>
+
+        {/* Reserved height keeps the form still while localStorage is read. */}
+        <div className="mb-4 min-h-[84px]">
+          {hydrated && savedTeamName && (
+            <Card tone="accent" className="animate-fade">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-display text-[11px] uppercase tracking-[0.15em] text-text-muted">
+                    Active file
+                  </p>
+                  <p className="truncate text-sm font-bold text-text-primary">
+                    {savedTeamName}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Button size="sm" onClick={handleContinue}>
+                    Resume
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={handleLogout}>
+                    Sign out
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+        </div>
+
+        <Card>
+          <div
+            role="tablist"
+            aria-label="Sign in or register"
+            className="mb-4 grid grid-cols-2 overflow-hidden rounded border border-border-dark"
+          >
+            {(
+              [
+                { id: "login", label: "Sign In" },
+                { id: "register", label: "New Team" },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                role="tab"
+                type="button"
+                aria-selected={mode === tab.id}
+                onClick={() => setMode(tab.id)}
+                className={cn(
+                  "min-h-11 px-3 py-2.5 font-display text-[13px] uppercase tracking-[0.12em] transition-colors",
+                  mode === tab.id
+                    ? "bg-accent text-white"
+                    : "bg-ink-800 text-text-muted hover:text-text-primary"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-1">
             <Input
               label="Event Code"
-              placeholder="DETECTIVE-2024"
+              placeholder="ATRIA"
               value={eventCode}
               onChange={(e) => setEventCode(e.target.value)}
+              autoCapitalize="characters"
               required
             />
-            <div>
-              <Input
-                label="Team Name"
-                placeholder="Enter your team name"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                required
-                maxLength={30}
-              />
-              {mode === "register" && teamName.trim() && (
-                <p className={`mt-1 text-[10px] ${nameAvailable === true ? "text-success" : nameAvailable === false ? "text-error" : "text-text-muted"}`}>
-                  {checkingName ? "Checking..." : nameAvailable === true ? "Name available" : nameAvailable === false ? "Name already taken" : ""}
-                </p>
-              )}
-            </div>
+            <Input
+              label="Team Name"
+              placeholder="Name your team"
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+              required
+              maxLength={30}
+              hint={nameHint}
+              hintTone={
+                nameAvailable === true
+                  ? "success"
+                  : nameAvailable === false
+                    ? "error"
+                    : "muted"
+              }
+            />
             <Input
               label="PIN"
               type="password"
-              placeholder="Enter your team PIN"
+              placeholder="Your team PIN"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               required
@@ -212,83 +271,64 @@ export default function HomePage() {
             />
 
             {error && (
-              <p className="text-center text-xs text-error">{error}</p>
+              <p role="alert" className="mb-2 text-center text-xs text-error">
+                {error}
+              </p>
             )}
 
-            <Button type="submit" fullWidth loading={loading} disabled={mode === "register" && nameAvailable === false}>
-              {mode === "register"
-                ? "Join the Investigation"
-                : "Resume Investigation"}
+            <Button
+              type="submit"
+              fullWidth
+              size="lg"
+              loading={loading}
+              disabled={mode === "register" && nameAvailable === false}
+            >
+              {mode === "register" ? "Open the file" : "Resume the case"}
             </Button>
           </form>
         </Card>
 
-        <div className="mt-4 flex justify-center gap-4">
+        <div className="mt-5 flex justify-center gap-2">
           <a
             href="/leaderboard"
-            className="text-xs uppercase tracking-wider text-text-muted hover:text-gold transition-colors"
+            className="min-h-11 px-3 py-3 font-display text-xs uppercase tracking-[0.15em] text-text-muted transition-colors hover:text-gold"
           >
             Leaderboard
           </a>
           <button
-            onClick={() => setShowHowToPlay(!showHowToPlay)}
-            className="text-xs uppercase tracking-wider text-text-muted hover:text-gold transition-colors"
+            type="button"
+            onClick={() => setShowHowToPlay((open) => !open)}
+            aria-expanded={showHowToPlay}
+            className="min-h-11 px-3 py-3 font-display text-xs uppercase tracking-[0.15em] text-text-muted transition-colors hover:text-gold"
           >
             How to Play
           </button>
         </div>
 
         {showHowToPlay && (
-          <Card className="mt-4">
-            <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-gold">
-              How to Play
-            </h3>
-            <div className="space-y-2 text-xs text-text-secondary">
-              <div className="flex gap-2">
-                <span className="text-accent">1.</span>
-                <p>
-                  <strong className="text-text-primary">Read the story</strong>{" "}
-                  to understand the crime scene and meet the suspects.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <span className="text-accent">2.</span>
-                <p>
-                  <strong className="text-text-primary">Examine evidence</strong>{" "}
-                  and mark important clues by tapping the star icon.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <span className="text-accent">3.</span>
-                <p>
-                  <strong className="text-text-primary">Interview suspects</strong>{" "}
-                  and take notes on their statements and alibis.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <span className="text-accent">4.</span>
-                <p>
-                  <strong className="text-text-primary">Ask the detective</strong>{" "}
-                  for guidance or request hints when you&apos;re stuck.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <span className="text-accent">5.</span>
-                <p>
-                  <strong className="text-text-primary">Solve the case</strong>{" "}
-                  by identifying the murderer and their motive.
-                </p>
-              </div>
-            </div>
-            <p className="mt-3 text-xs text-text-muted">
-              Your score depends on speed, wrong attempts, and hints used.
+          <Card className="animate-rise mt-3" title="How to Play">
+            <ol className="space-y-3">
+              {HOW_TO_PLAY.map((step, index) => (
+                <li key={step.title} className="flex gap-3">
+                  <span className="mt-0.5 font-mono text-xs text-accent">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-text-primary">
+                      {step.title}
+                    </p>
+                    <p className="text-sm leading-relaxed text-text-secondary">
+                      {step.body}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-4 border-t border-border-dark pt-3 text-xs text-text-muted">
+              Your score falls with time, wrong accusations and hints used.
             </p>
           </Card>
         )}
-
-        <p className="mt-8 text-center text-[10px] uppercase tracking-[0.3em] text-text-muted">
-          AI-Powered Murder Mystery
-        </p>
       </div>
     </div>
   );
