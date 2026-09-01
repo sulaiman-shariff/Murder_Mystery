@@ -266,23 +266,53 @@ Common but INCORRECT interpretations (reject these): ${params.commonIncorrectInt
 Mystery context: ${params.mysteryContext}
 Player's answer: "${params.playerMotive}"
 
-Determine if the player's answer captures the core reason for the murder.
+Decide one thing only: has the player worked out WHY the murder happened?
 
-Rules:
-- Accept good paraphrases that include the required concepts
-- Distinguish between partially correct and fully correct motives
-- Reject overly broad answers
-- Reject plausible but incorrect motives (especially common misinterpretations listed above)
-- Reject answers missing the core reason
-- Never expose the exact missing answer
-- When incorrect, give only a vague directional nudge (do NOT list missingConcepts to the player)
-- Keep feedback under 200 characters
-- Confidence below 0.7 → correct=false`;
+Who you are judging: a guest at a party, typing a sentence or two on a phone.
+They write plainly and briefly. They will not use the vocabulary above, and
+they must never be required to.
+
+The listed concepts describe the IDEA behind the motive. They are not words
+the player has to say, and they are not a checklist to tick off. An answer
+that conveys the same reason in ordinary language is exactly as correct as
+the canonical wording. "He was angry that his painting got cancelled" and a
+polished paragraph about artistic betrayal are the SAME ANSWER.
+
+Mark correct=true when the player has named the essential reason - the thing
+that actually drove the killer - even if they:
+- use casual, vague or misspelled wording
+- give only the single main reason and omit the surrounding nuance
+- describe the cause in their own terms rather than the canonical terms
+- write one short sentence
+
+Mark correct=false ONLY when the player:
+- names a genuinely different reason (money, inheritance, an affair, a
+  robbery, self-defence) - including any of the incorrect interpretations above
+- is so generic it would fit any murder at all ("he was angry", "they hated
+  each other") with nothing tying it to this case
+- has clearly not understood what happened
+
+When in doubt between "vague but right" and "wrong", choose correct=true.
+Being too strict costs a player their attempt for an answer they had right,
+which is the worse mistake here.
+
+confidence = how sure you are of YOUR VERDICT, from 0 to 1. It is NOT a score
+for how much of the canonical wording appeared. A clearly wrong answer gets
+HIGH confidence with correct=false. Use a value below 0.7 only when the answer
+is genuinely too short or muddled to judge either way.
+
+matchedConcepts/missingConcepts are internal notes for the organisers only.
+They are never shown to the player and must not drive your verdict.
+
+Feedback (under 200 characters):
+- correct: confirm it warmly and plainly.
+- incorrect: nudge them toward the right area without naming the reason,
+  the killer, or any concept from the lists above.`;
 
   try {
     const raw = await callGemini(prompt, {
       maxTokens: 400,
-      temperature: 0.1,
+      temperature: 0,
       responseSchema: MOTIVE_SCHEMA as Record<string, unknown>,
     });
     const parsed = JSON.parse(cleanJson(raw));
@@ -306,13 +336,16 @@ Rules:
 
     const confidence = Math.max(0, Math.min(1, parsed.confidence));
 
+    // Confidence is certainty about the verdict, not how much canonical
+    // wording appeared, so it no longer decides correctness on its own.
+    // Previously anything under the threshold became "ambiguous", which both
+    // bounced plainly-worded right answers and let obviously wrong ones off
+    // as "needs more detail".
     let status: "correct" | "incorrect" | "ambiguous" | "unavailable";
-    if (parsed.correct && confidence >= CONFIDENCE_THRESHOLD) {
-      status = "correct";
-    } else if (confidence < CONFIDENCE_THRESHOLD && confidence > 0) {
+    if (confidence < CONFIDENCE_THRESHOLD) {
       status = "ambiguous";
     } else {
-      status = "incorrect";
+      status = parsed.correct ? "correct" : "incorrect";
     }
 
     return {
