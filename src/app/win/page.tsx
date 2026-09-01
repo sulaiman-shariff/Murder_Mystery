@@ -32,7 +32,7 @@ function WinContent() {
   }
 
   return (
-    <div className="safe-top safe-bottom flex min-h-dvh flex-col items-center px-4 py-10">
+    <div className="screen-pad-y flex min-h-dvh flex-col items-center px-4">
       <div className="w-full max-w-md">
         <div className="mb-10 flex flex-col items-center text-center">
           <Stamp tone="gold" slam className="text-lg">

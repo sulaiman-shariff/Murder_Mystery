@@ -121,14 +121,34 @@ select {
    Utilities
    ============================================================ */
 
-/* Safe-area helpers. The body deliberately carries no inset padding —
-   applying it there alongside a full-height rule produces phantom scroll. */
+/* Safe-area helpers.
+   The body deliberately carries no inset padding: applying it there
+   alongside a full-height rule produces phantom scroll.
+
+   These set padding outright, so they must never sit beside a Tailwind
+   vertical-padding utility on the same element: being defined outside
+   Tailwind's layers they win, and on a device reporting no inset the padding
+   collapses to zero. Each helper therefore carries its own base via max(). */
+.screen-pad-y {
+  padding-top: max(2.5rem, env(safe-area-inset-top));
+  padding-bottom: max(2.5rem, env(safe-area-inset-bottom));
+}
+
+.screen-pad-y-tight {
+  padding-top: max(1.5rem, env(safe-area-inset-top));
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
 .safe-top {
   padding-top: env(safe-area-inset-top);
 }
 
-.safe-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
+.bar-pad-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.sheet-pad-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
 .scroll-region {

@@ -54,7 +54,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     >
       {/* No safe-area padding here: combined with a full-height rule it adds
           the insets on top of 100dvh and every page gains phantom scroll.
-          Screens apply .safe-top / .safe-bottom where they actually need it. */}
+          Screens apply the .*-pad-* helpers where they actually need it. */}
       <body className="bg-ink-900 antialiased">{children}</body>
     </html>
   );

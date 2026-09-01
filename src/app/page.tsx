@@ -149,7 +149,7 @@ export default function HomePage() {
       : " ";
 
   return (
-    <div className="safe-top safe-bottom flex min-h-dvh flex-col items-center justify-center px-4 py-10">
+    <div className="screen-pad-y flex min-h-dvh flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         {/* The file cover: the most characteristic object in this world. */}
         <div className="paper-grain relative mb-8 overflow-hidden rounded-card border border-paper-dim/30 bg-paper px-5 pb-6 pt-5 shadow-lift">
@@ -179,8 +179,10 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Reserved height keeps the form still while localStorage is read. */}
-        <div className="mb-4 min-h-[84px]">
+        {/* Held open only until localStorage has been read, so a returning
+            team's card does not shove the form down; collapsed afterwards
+            rather than leaving a permanent gap for everyone else. */}
+        <div className={hydrated && !savedTeamName ? "" : "mb-4 min-h-[84px]"}>
           {hydrated && savedTeamName && (
             <Card tone="accent" className="animate-fade">
               <div className="flex items-center justify-between gap-3">

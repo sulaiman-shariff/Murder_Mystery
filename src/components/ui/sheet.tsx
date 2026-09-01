@@ -126,7 +126,7 @@ export function Sheet({
         </div>
 
         {footer && (
-          <div className="safe-bottom shrink-0 border-t border-border-dark bg-ink-900 p-4">
+          <div className="sheet-pad-bottom shrink-0 border-t border-border-dark bg-ink-900 px-4 pt-4">
             {footer}
           </div>
         )}

@@ -67,7 +67,7 @@ export default function LeaderboardPage() {
   }
 
   return (
-    <div className="safe-top safe-bottom flex min-h-dvh flex-col items-center px-4 py-10">
+    <div className="screen-pad-y flex min-h-dvh flex-col items-center px-4">
       <div className="w-full max-w-2xl">
         <header className="mb-6 text-center">
           <h1 className="font-display text-2xl uppercase tracking-[0.15em] text-accent">

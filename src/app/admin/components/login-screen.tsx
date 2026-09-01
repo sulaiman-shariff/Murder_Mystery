@@ -19,7 +19,7 @@ export function LoginScreen({
   error: string;
 }) {
   return (
-    <div className="safe-top safe-bottom flex min-h-dvh items-center justify-center px-4 py-10">
+    <div className="screen-pad-y flex min-h-dvh items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
           <Stamp tone="accent">Restricted</Stamp>

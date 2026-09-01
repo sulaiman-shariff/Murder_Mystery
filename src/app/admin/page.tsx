@@ -290,7 +290,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="safe-top safe-bottom flex min-h-dvh flex-col px-4 py-6">
+    <div className="screen-pad-y-tight flex min-h-dvh flex-col px-4">
       <div className="mx-auto w-full max-w-3xl">
         <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-xl uppercase tracking-[0.15em] text-accent">

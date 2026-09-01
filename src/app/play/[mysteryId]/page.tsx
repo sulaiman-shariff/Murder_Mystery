@@ -367,7 +367,7 @@ export default function PlayPage() {
           </div>
         </main>
 
-        <div className="safe-bottom z-10 shrink-0 border-t border-border-dark bg-ink-900 px-3 py-2">
+        <div className="bar-pad-bottom z-10 shrink-0 border-t border-border-dark bg-ink-900 px-3 pt-2">
           <div className="mx-auto flex w-full max-w-2xl gap-2">
             <Button
               size="sm"
