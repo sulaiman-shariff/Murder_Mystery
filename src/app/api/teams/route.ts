@@ -4,6 +4,7 @@ import { createSession, getActiveSession } from "@/lib/database/sessions";
 import { getMysteryByOrder } from "@/data/mystery-index";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { cleanupStaleSessions } from "@/lib/database/cleanup";
+import { setTeamCookie } from "@/lib/auth/team-session";
 
 /**
  * Expected failures and the status they should carry. Anything not listed
@@ -102,11 +103,13 @@ async function handleRegister(name: string, pin: string, eventCode: string) {
     firstMystery.id
   );
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     team,
     session: activeSession,
     nextMysteryId: firstMystery.id,
   });
+  setTeamCookie(response, { teamId: team.id, eventId: team.eventId });
+  return response;
 }
 
 async function handleLogin(name: string, pin: string, eventCode: string) {
@@ -124,9 +127,11 @@ async function handleLogin(name: string, pin: string, eventCode: string) {
 
   const activeSession = await getActiveSession(team.id, eventId);
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     team,
     activeSession,
     nextMysteryId: activeSession?.mysteryId || firstMystery.id,
   });
+  setTeamCookie(response, { teamId: team.id, eventId });
+  return response;
 }

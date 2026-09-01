@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server-admin";
 import { getEventScoring } from "@/lib/database/events";
+import { getProofSpec } from "@/data/deduction";
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,6 +27,8 @@ export async function POST(request: NextRequest) {
     // Sent to the client so the solve panel can preview a score using the
     // same rules the server will apply on completion.
     const scoring = await getEventScoring(supabase, eventId);
+    // The cap on a proof submission. Safe to expose — it is a limit, not a key.
+    const maxSelections = getProofSpec(mysteryId)?.maxSelections ?? 5;
 
     const now = new Date().toISOString();
 
@@ -52,7 +55,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (updated) {
-        return NextResponse.json({ session: sessionRowToResponse(updated), maxAttempts, scoring });
+        return NextResponse.json({ session: sessionRowToResponse(updated), maxAttempts, scoring, maxSelections });
       }
     }
 
@@ -71,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ session: sessionRowToResponse(newSession), maxAttempts, scoring });
+    return NextResponse.json({ session: sessionRowToResponse(newSession), maxAttempts, scoring, maxSelections });
   } catch (err) {
     console.error("Session start error:", err);
     return NextResponse.json(

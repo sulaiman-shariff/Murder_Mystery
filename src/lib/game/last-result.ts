@@ -10,11 +10,20 @@ export interface ScoreBreakdown {
   total: number;
 }
 
+export interface Bonuses {
+  proof: number;
+  alibi: number;
+  board: number;
+  interrogation: number;
+  total: number;
+}
+
 export interface LastResult {
   mysteryId: string;
   score: number;
   elapsedSeconds: number;
   breakdown?: ScoreBreakdown;
+  bonuses?: Bonuses;
 }
 
 const KEY = "mm_last_result";

@@ -4,6 +4,8 @@ import { getMysteryById } from "@/data/mystery-index";
 import { getHintLevel } from "@/data/solutions";
 import { logAiInteraction } from "@/lib/database/ai-log";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { requireTeam } from "@/lib/auth/team-session";
+import { createAdminClient } from "@/lib/supabase/server-admin";
 
 export async function POST(request: NextRequest) {
   try {
@@ -64,6 +66,29 @@ export async function POST(request: NextRequest) {
     }
 
     logAiInteraction(sessionId, "hint", `Level ${level} requested`, hint);
+
+    // The hint penalty is recorded server-side. It used to live only in the
+    // client's counter, which the client then sent back at scoring time.
+    const actor = requireTeam(request, body.teamId);
+    if (!(actor instanceof NextResponse)) {
+      const supabase = createAdminClient();
+      const { data: row } = await supabase
+        .from("game_sessions")
+        .select("id, hints_used")
+        .eq("team_id", actor.teamId)
+        .eq("mystery_id", mysteryId)
+        .in("status", ["not_started", "in_progress"])
+        .order("last_saved_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (row) {
+        await supabase
+          .from("game_sessions")
+          .update({ hints_used: Math.max(row.hints_used ?? 0, level) })
+          .eq("id", row.id);
+      }
+    }
 
     return NextResponse.json({
       success: true,

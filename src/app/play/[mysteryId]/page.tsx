@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getMysteryById } from "@/data/mystery-index";
-import type { Mystery, ScoringSettings } from "@/types";
+import type { BoardPin, Mystery, ScoringSettings } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, type TabItem } from "@/components/ui/tabs";
@@ -11,6 +11,8 @@ import { LoadingScreen } from "@/components/ui/skeleton";
 import { Stamp } from "@/components/ui/stamp";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { SolveCase, type SolveResult } from "@/components/game/solve-case";
+import { AlibiSheet, InterrogateSheet } from "@/components/game/suspect-sheets";
+import { BoardPanel } from "./components/board-panel";
 import { HintPanel } from "@/components/game/hint-panel";
 import { DetectiveChat } from "@/components/game/detective-chat";
 import { useGameSession } from "@/lib/game/use-game-session";
@@ -38,6 +40,7 @@ type TabId =
   | "suspects"
   | "evidence"
   | "timeline"
+  | "board"
   | "solve";
 
 export default function PlayPage() {
@@ -56,6 +59,11 @@ export default function PlayPage() {
   const [loading, setLoading] = useState(true);
   const [maxAttempts, setMaxAttempts] = useState(10);
   const [scoring, setScoring] = useState<ScoringSettings | undefined>();
+  const [boardPins, setBoardPins] = useState<BoardPin[]>([]);
+  const [alibisBroken, setAlibisBroken] = useState<string[]>([]);
+  const [maxSelections, setMaxSelections] = useState(5);
+  const [alibiFor, setAlibiFor] = useState<string | null>(null);
+  const [confrontFor, setConfrontFor] = useState<string | null>(null);
 
   const session = useGameSession(mystery);
   const teamId = typeof window !== "undefined" ? getTeam()?.id : null;
@@ -96,6 +104,9 @@ export default function PlayPage() {
             setMaxAttempts(data.maxAttempts);
           }
           if (data.scoring) setScoring(data.scoring as ScoringSettings);
+          if (typeof data.maxSelections === "number") {
+            setMaxSelections(data.maxSelections);
+          }
           const state = data.session.state as Record<string, unknown> | null;
           if (state) {
             if (state.notes) {
@@ -109,6 +120,12 @@ export default function PlayPage() {
             }
             if (typeof state.hintsUsed === "number") {
               session.setHintsUsed(state.hintsUsed);
+            }
+            if (Array.isArray(state.boardPins)) {
+              setBoardPins(state.boardPins as BoardPin[]);
+            }
+            if (Array.isArray(state.alibisBroken)) {
+              setAlibisBroken(state.alibisBroken as string[]);
             }
           }
         }
@@ -131,6 +148,7 @@ export default function PlayPage() {
       state: {
         notes,
         importantEvidence,
+        boardPins,
         wrongAttempts: session.wrongAttempts,
         hintsUsed: session.hintsUsed,
       },
@@ -151,6 +169,7 @@ export default function PlayPage() {
   }, [
     notes,
     importantEvidence,
+    boardPins,
     session.wrongAttempts,
     session.hintsUsed,
     mystery,
@@ -184,6 +203,7 @@ export default function PlayPage() {
         score: result.score,
         elapsedSeconds: session.elapsedSeconds,
         breakdown: result.breakdown,
+        bonuses: result.bonuses,
       });
       setShowSolve(false);
       setCompleted(true);
@@ -246,7 +266,8 @@ export default function PlayPage() {
     { id: "suspects", label: "Suspects" },
     { id: "evidence", label: "Evidence" },
     { id: "timeline", label: "Timeline" },
-    ...(completed ? [] : [{ id: "solve" as TabId, label: "Solve" }]),
+    { id: "board", label: "Board" },
+    ...(completed ? [] : [{ id: "solve" as TabId, label: "Accuse" }]),
   ];
 
   return (
@@ -295,6 +316,9 @@ export default function PlayPage() {
                 mystery={mystery}
                 notes={notes}
                 onNoteChange={handleNoteChange}
+                alibisBroken={alibisBroken}
+                onChallengeAlibi={setAlibiFor}
+                onConfront={setConfrontFor}
               />
             )}
 
@@ -308,12 +332,22 @@ export default function PlayPage() {
 
             {activeTab === "timeline" && <TimelinePanel mystery={mystery} />}
 
+            {activeTab === "board" && (
+              <BoardPanel
+                mystery={mystery}
+                pins={boardPins}
+                onChange={setBoardPins}
+                alibisBroken={alibisBroken}
+              />
+            )}
+
             {activeTab === "solve" && !completed && (
               <div className="mx-auto max-w-2xl space-y-3">
                 <Card tone="accent" title="Close the case">
                   <p className="text-[15px] leading-relaxed text-text-secondary">
-                    Name the murderer and explain their motive. Both have to be
-                    right — a wrong accusation costs you an attempt and points.
+                    Name the murderer, explain their motive, and pick out the
+                    clues that prove it. All three have to hold up — a wrong
+                    accusation costs you an attempt and points.
                   </p>
                   <div className="mt-4 flex flex-col gap-2">
                     <Button fullWidth size="lg" onClick={() => setShowSolve(true)}>
@@ -400,14 +434,13 @@ export default function PlayPage() {
         {showSolve && (
           <SolveCase
             mystery={mystery}
-            elapsedSeconds={session.elapsedSeconds}
-            wrongAttempts={session.wrongAttempts}
-            hintsUsed={session.hintsUsed}
             maxAttempts={maxAttempts}
-            scoring={scoring}
+            wrongAttempts={session.wrongAttempts}
+            maxSelections={maxSelections}
+            importantEvidence={importantEvidence}
             onComplete={handleComplete}
             onFail={handleFail}
-            onWrongAttempt={session.recordWrongAttempt}
+            onRejected={session.setWrongAttempts}
             onClose={() => setShowSolve(false)}
           />
         )}
@@ -425,6 +458,27 @@ export default function PlayPage() {
           <DetectiveChat
             mystery={mystery}
             onClose={() => setShowDetective(false)}
+          />
+        )}
+
+        {alibiFor && (
+          <AlibiSheet
+            mystery={mystery}
+            suspect={mystery.suspects.find((s) => s.id === alibiFor)!}
+            onClose={() => setAlibiFor(null)}
+            onBroken={(id) =>
+              setAlibisBroken((prev) =>
+                prev.includes(id) ? prev : [...prev, id]
+              )
+            }
+          />
+        )}
+
+        {confrontFor && (
+          <InterrogateSheet
+            mystery={mystery}
+            suspect={mystery.suspects.find((s) => s.id === confrontFor)!}
+            onClose={() => setConfrontFor(null)}
           />
         )}
       </div>

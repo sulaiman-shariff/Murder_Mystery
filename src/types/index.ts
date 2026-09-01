@@ -143,6 +143,12 @@ export interface ScoringSettings {
   speedBonusThresholdMinutes: number;
   speedBonus: number;
   minimumScore: number;
+  /** Bonuses for the optional deduction tools. These only ever add. */
+  proofBonus: number;
+  alibiBonusPerBreak: number;
+  alibiBonusCap: number;
+  boardAccuracyBonus: number;
+  interrogationBonus: number;
 }
 
 export interface ScoreInput {
@@ -351,4 +357,41 @@ export interface AdminAiLog {
   player_input: string;
   ai_output: string;
   created_at: string;
+}
+
+// ── Deduction types ──
+// The interfaces are safe here (types are erased at build time); the DATA that
+// fills them is authored in src/data/deduction.ts, which is server-only.
+
+/** What a submitted proof set was judged to be. */
+export type ProofVerdict = "proven" | "incomplete" | "unfocused" | "over-cap";
+
+export interface ProofGrade {
+  verdict: ProofVerdict;
+  /** How many required clues are absent. Counts only — never which. */
+  missingCount: number;
+  /** How many selected clues prove nothing. */
+  noiseCount: number;
+  required: number;
+  maxSelections: number;
+}
+
+/** What breaking an alibi actually establishes. Not always guilt. */
+export type AlibiConsequence = "places-at-scene" | "eliminates" | "weakens";
+
+/** How a suspect answers when shown a particular piece of evidence. */
+export type ConfrontationPosture = "deny" | "deflect" | "crack" | "concede";
+
+export interface InterrogationTurn {
+  suspectId: string;
+  evidenceId: string;
+  reply: string;
+  at: number;
+}
+
+/** One link on the case board: the team's own assertion, never graded live. */
+export interface BoardPin {
+  evidenceId: string;
+  suspectId: string;
+  at: number;
 }

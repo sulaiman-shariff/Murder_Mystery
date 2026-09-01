@@ -102,10 +102,16 @@ export function SuspectsPanel({
   mystery,
   notes,
   onNoteChange,
+  alibisBroken,
+  onChallengeAlibi,
+  onConfront,
 }: {
   mystery: Mystery;
   notes: Record<string, string>;
   onNoteChange: (suspectId: string, text: string) => void;
+  alibisBroken: string[];
+  onChallengeAlibi: (suspectId: string) => void;
+  onConfront: (suspectId: string) => void;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -126,6 +132,11 @@ export function SuspectsPanel({
                 <p className="truncate font-mono text-xs uppercase tracking-wider text-text-muted">
                   {suspect.role} · {suspect.relationshipToVictim}
                 </p>
+                {alibisBroken.includes(suspect.id) && (
+                  <Badge tone="error" className="mt-1">
+                    Alibi broken
+                  </Badge>
+                )}
               </div>
             }
           >
@@ -191,6 +202,25 @@ export function SuspectsPanel({
                   className="bg-ink-700"
                 />
               </Field>
+
+              <div className="flex flex-col gap-2 border-t border-border-dark pt-3 sm:flex-row">
+                {suspect.alibi && !alibisBroken.includes(suspect.id) && (
+                  <Button
+                    variant="gold"
+                    fullWidth
+                    onClick={() => onChallengeAlibi(suspect.id)}
+                  >
+                    Challenge their alibi
+                  </Button>
+                )}
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  onClick={() => onConfront(suspect.id)}
+                >
+                  Confront them
+                </Button>
+              </div>
             </div>
           </Disclosure>
         </Card>

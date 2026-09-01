@@ -8,7 +8,7 @@ import { Stamp } from "@/components/ui/stamp";
 import { LoadingScreen } from "@/components/ui/skeleton";
 import { CaseSolution } from "@/components/game/case-solution";
 import { getMysteryById } from "@/data/mystery-index";
-import { readLastResult, type ScoreBreakdown } from "@/lib/game/last-result";
+import { readLastResult, type Bonuses, type ScoreBreakdown } from "@/lib/game/last-result";
 import type { Mystery } from "@/types";
 
 function WinContent() {
@@ -16,6 +16,7 @@ function WinContent() {
   const router = useRouter();
   const [mystery, setMystery] = useState<Mystery | null>(null);
   const [breakdown, setBreakdown] = useState<ScoreBreakdown | null>(null);
+  const [bonuses, setBonuses] = useState<Bonuses | null>(null);
 
   const mysteryId = searchParams.get("mysteryId") || "";
   const score = parseInt(searchParams.get("score") || "0", 10);
@@ -24,7 +25,9 @@ function WinContent() {
 
   useEffect(() => {
     setMystery(getMysteryById(mysteryId) || null);
-    setBreakdown(readLastResult(mysteryId)?.breakdown ?? null);
+    const last = readLastResult(mysteryId);
+    setBreakdown(last?.breakdown ?? null);
+    setBonuses(last?.bonuses ?? null);
   }, [mysteryId]);
 
   if (!mystery) {
@@ -108,6 +111,29 @@ function WinContent() {
                 Held at the minimum score for a solved case.
               </p>
             )}
+          </Card>
+        )}
+
+        {bonuses && bonuses.total > 0 && (
+          <Card title="Detective work">
+            <dl className="space-y-1.5 text-sm">
+              {bonuses.proof > 0 && (
+                <Row label="Proved it cleanly" value={`+${bonuses.proof}`} tone="gold" />
+              )}
+              {bonuses.alibi > 0 && (
+                <Row label="Alibis broken" value={`+${bonuses.alibi}`} tone="gold" />
+              )}
+              {bonuses.board > 0 && (
+                <Row label="Case board" value={`+${bonuses.board}`} tone="gold" />
+              )}
+              {bonuses.interrogation > 0 && (
+                <Row
+                  label="Cracked a suspect"
+                  value={`+${bonuses.interrogation}`}
+                  tone="gold"
+                />
+              )}
+            </dl>
           </Card>
         )}
 

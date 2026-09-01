@@ -434,3 +434,89 @@ Detective:`;
     throw new Error("Detective chat unavailable");
   }
 }
+
+const INTERROGATION_SCHEMA = {
+  type: "object",
+  properties: {
+    reply: { type: "string" },
+  },
+  required: ["reply"],
+} as const;
+
+/**
+ * A suspect answering when shown one piece of evidence.
+ *
+ * Three things keep this from leaking the solution:
+ *
+ *  1. This function never receives the solution. It is given the suspect's own
+ *     public data plus one authored `beat` — a single sentence of true,
+ *     non-spoiler content — and its job is voice, not invention.
+ *  2. Every suspect uses the IDENTICAL template. If the murderer's prompt said
+ *     "you are guilty, deflect", the tone would differ measurably across
+ *     suspects and that difference would itself be the tell. Innocent suspects
+ *     get `crack` postures too.
+ *  3. The caller scrubs the reply, and on a trip falls back to the authored
+ *     beat — which also means the mechanic degrades to authored prose rather
+ *     than an error when the model is unreachable.
+ */
+export async function interrogate(params: {
+  suspectName: string;
+  suspectRole: string;
+  relationshipToVictim: string;
+  suspectStatement: string;
+  victimName: string;
+  evidenceTitle: string;
+  evidenceDescription: string;
+  posture: string;
+  beat: string;
+}): Promise<string> {
+  const prompt = `You are ${params.suspectName}, ${params.suspectRole} — ${params.relationshipToVictim} — being questioned about the death of ${params.victimName}. You speak the way this person speaks: "${params.suspectStatement}"
+
+You have just been shown: ${params.evidenceTitle} — ${params.evidenceDescription}
+
+Your response must convey exactly this and nothing more:
+  ${params.beat}
+
+Deliver it with the posture: ${params.posture}
+  deny    — flatly reject the implication, but let the fact slip anyway
+  deflect — turn the question toward someone else's behaviour, then give the fact
+  crack   — composure fails; the fact comes out under pressure
+  concede — admit it plainly, with whatever it costs you
+
+Absolute rules:
+- Never say who the murderer is. Never confess to the killing. Never accuse anyone by name.
+- Invent no facts. Everything beyond the one fact above must be tone, not content.
+- Three to five sentences. First person. No stage directions.`;
+
+  const raw = await callGemini(prompt, {
+    maxTokens: 260,
+    temperature: 0.8,
+    responseSchema: INTERROGATION_SCHEMA as Record<string, unknown>,
+  });
+  const parsed = JSON.parse(cleanJson(raw));
+  if (typeof parsed.reply !== "string" || !parsed.reply.trim()) {
+    throw new Error("empty interrogation reply");
+  }
+  return parsed.reply.slice(0, 900);
+}
+
+/**
+ * Refuses any reply that names the killer or admits the killing, whoever is
+ * speaking. Same backstop as safeFeedback, applied to generated dialogue.
+ */
+export function scrubInterrogation(
+  reply: string,
+  murderer: string,
+  aliases: string[]
+): string | null {
+  const haystack = reply.toLowerCase();
+  const forbidden = [murderer, ...aliases, ...murderer.split(/\s+/)]
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => t.length > 2);
+
+  if (forbidden.some((term) => haystack.includes(term))) return null;
+  if (/i killed|i did it|i confess|the murderer is/i.test(reply)) {
+    return null;
+  }
+  return reply;
+}

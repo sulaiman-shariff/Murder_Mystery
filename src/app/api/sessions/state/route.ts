@@ -1,15 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server-admin";
+import { requireTeam } from "@/lib/auth/team-session";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getMysteryById } from "@/data/mystery-index";
+
+/** Roughly 64 KB of JSON. A working theory is nowhere near this. */
+const MAX_STATE_BYTES = 64_000;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { teamId, mysteryId, state } = body;
+    const { mysteryId, state } = body;
 
-    if (!teamId || !mysteryId || state === undefined) {
+    // Identity comes from the signed cookie, never the body: this route used
+    // to accept whatever teamId it was handed, so any caller could overwrite
+    // another team's game state.
+    const actor = requireTeam(request, body.teamId);
+    if (actor instanceof NextResponse) return actor;
+    const teamId = actor.teamId;
+
+    const limitCheck = checkRateLimit(`state:${teamId}`);
+    if (limitCheck) return limitCheck;
+
+    if (!mysteryId || state === undefined) {
       return NextResponse.json(
-        { error: "teamId, mysteryId, and state are required" },
+        { error: "mysteryId and state are required" },
         { status: 400 }
+      );
+    }
+
+    if (!getMysteryById(mysteryId)) {
+      return NextResponse.json({ error: "Unknown mystery" }, { status: 400 });
+    }
+
+    if (JSON.stringify(state).length > MAX_STATE_BYTES) {
+      return NextResponse.json(
+        { error: "That is more state than a case should need." },
+        { status: 413 }
       );
     }
 
